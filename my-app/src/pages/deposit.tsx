@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 type PaymentMethod = {
   id: string;
   name: string;
+};
+
+type DepositProps = {
+  onBack: () => void;
 };
 
 const paymentOptions: Record<string, PaymentMethod[]> = {
@@ -12,9 +15,7 @@ const paymentOptions: Record<string, PaymentMethod[]> = {
     { id: 'mtn', name: 'MTN Mobile Money' },
     { id: 'airtel', name: 'Airtel Money' },
   ],
-  KES: [
-    { id: 'mpesa', name: 'M-Pesa' },
-  ],
+  KES: [{ id: 'mpesa', name: 'M-Pesa' }],
   TZS: [
     { id: 'tigo', name: 'Tigo Pesa' },
     { id: 'vodacom', name: 'Vodacom M-Pesa' },
@@ -22,18 +23,18 @@ const paymentOptions: Record<string, PaymentMethod[]> = {
   ],
 };
 
-function Deposit() {
+export default function Deposit({ onBack }: DepositProps) {
   const [currency, setCurrency] = useState('UGX');
   const [amount, setAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [balance, setBalance] = useState(900000);
-  const navigate = useNavigate();
 
   const handleDeposit = () => {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return alert('Enter a valid amount');
     if (!selectedMethod) return alert('Please select a payment method');
+
     setBalance(balance + amt);
     setSuccess(true);
   };
@@ -42,7 +43,7 @@ function Deposit() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white px-6 py-8">
       {/* Header */}
       <div className="mb-6 flex items-center space-x-2">
-        <button onClick={() => navigate(-1)} className="text-blue-400 hover:text-blue-600">
+        <button onClick={onBack} className="text-blue-400 hover:text-blue-600">
           <ArrowLeft />
         </button>
         <h2 className="text-xl font-semibold">Deposit Funds</h2>
@@ -55,7 +56,7 @@ function Deposit() {
           value={currency}
           onChange={(e) => {
             setCurrency(e.target.value);
-            setSelectedMethod(null); // reset method on currency change
+            setSelectedMethod(null);
           }}
           className="w-full p-2 rounded-md bg-slate-800 text-white focus:outline-none"
         >
@@ -98,10 +99,26 @@ function Deposit() {
       {/* Deposit Button */}
       <button
         onClick={handleDeposit}
-        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-full shadow-md transition-colors"
+        disabled={!amount || !selectedMethod}
+        className={`w-full py-3 rounded-full font-semibold shadow-md transition-colors ${
+          amount && selectedMethod
+            ? 'bg-blue-500 hover:bg-blue-600 text-white'
+            : 'bg-gray-600 text-gray-300 cursor-not-allowed'
+        }`}
       >
         Deposit Now
       </button>
+
+      {/* Notes */}
+      <div className="bg-black/20 backdrop-blur-sm rounded-2xl p-4 border border-blue-800/30 mt-6">
+        <h3 className="text-white font-medium mb-2">Important Notes:</h3>
+        <ul className="text-gray-300 text-sm space-y-1">
+          <li>• Minimum deposit amount is UGX 1,000</li>
+          <li>• Deposits are processed instantly</li>
+          <li>• No fees for mobile money deposits</li>
+          <li>• Ensure your mobile money account has sufficient balance</li>
+        </ul>
+      </div>
 
       {/* Success Popup */}
       {success && (
@@ -124,5 +141,3 @@ function Deposit() {
     </div>
   );
 }
-
-export default Deposit;
