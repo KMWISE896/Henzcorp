@@ -86,7 +86,7 @@ export default function SignupScreen({ onSignup, onSwitchToLogin, showAlert }: S
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-300 mb-2">HENZCORP</h1>
+          <h1 className="text-3xl font-bold text-blue-300 mb-2">Feezpay</h1>
           <p className="text-gray-400">Create your crypto wallet account</p>
         </div>
 
