@@ -55,7 +55,7 @@ export const useSupabaseData = () => {
         userTransactions = await Promise.race([
           getUserTransactions(user.id, 50),
           new Promise<Transaction[]>((_, reject) => 
-            setTimeout(() => reject(new Error('Transaction fetch timeout')), 10000)
+            setTimeout(() => reject(new Error('Transaction fetch timeout')), 20000)
           )
         ])
         console.log('✅ Transactions fetched:', userTransactions.length)
