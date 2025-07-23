@@ -20,80 +20,25 @@ export const signUp = async (
   }
 ) => {
   try {
+    // Format phone number before passing to auth
+    const formattedPhone = formatPhoneNumber(userData.phone)
+
+    // Pass all user data through auth metadata - the backend trigger will handle profile/wallet creation
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          phone: formattedPhone,
+          referral_code: userData.referralCode || null
+        }
+      }
     })
 
     if (authError) throw authError
     if (!authData.user) throw new Error('User creation failed')
-
-    const userId = authData.user.id
-
-    // Resolve referral code
-    let referrerId: string | null = null
-    if (userData.referralCode) {
-      const { data: referrer, error: referrerError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('referral_code', userData.referralCode)
-        .maybeSingle()
-
-      if (referrerError && referrerError.code !== 'PGRST116') throw referrerError
-      referrerId = referrer?.id ?? null
-    }
-
-    // Check if profile exists
-    const { data: existingProfile, error: profileCheckError } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (profileCheckError && profileCheckError.code !== 'PGRST116') throw profileCheckError
-
-    // Create user profile
-    if (!existingProfile) {
-      const formattedPhone = formatPhoneNumber(userData.phone)
-
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          id: userId,
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          phone: formattedPhone,
-          referral_code: generateReferralCode(),
-          referred_by: referrerId,
-          verification_status: 'verified'
-        })
-
-      if (profileError) throw profileError
-    }
-
-    // Create wallet if not exists
-    const { data: existingWallet, error: walletCheckError } = await supabase
-      .from('wallets')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('currency', 'UGX')
-      .maybeSingle()
-
-    if (walletCheckError && walletCheckError.code !== 'PGRST116') throw walletCheckError
-
-    if (!existingWallet) {
-      const { error: walletError } = await supabase
-        .from('wallets')
-        .insert({
-          user_id: userId,
-          currency: 'UGX',
-          balance: 0,
-          available_balance: 0,
-          locked_balance: 0
-        })
-
-      if (walletError) throw walletError
-    }
 
     return authData
   } catch (error) {
