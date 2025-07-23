@@ -78,7 +78,8 @@ export default function DepositScreen({ onBack, onSuccess, showAlert }: DepositS
         currency: 'UGX',
         amount: depositAmount,
         fee: fee,
-        description: `Deposit via ${selectedMethod.replace('_', ' ')}`
+        description: `Deposit via ${selectedMethod ? selectedMethod.replace('_', ' ') : 'unknown method'}`
+
       });
 
       // Create deposit record
