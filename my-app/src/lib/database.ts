@@ -82,6 +82,10 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
 
   if (error) {
     console.error('❌ Error fetching user profile:', error)
+    if (error.code === 'PGRST116' || error.message.includes('relation') || error.message.includes('does not exist')) {
+      console.warn('⚠️ user_profiles table may not exist - this suggests database migration is needed')
+      return null
+    }
     throw error
   }
 
@@ -113,7 +117,14 @@ export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
     .eq('user_id', userId)
     .order('created_at', { ascending: true })
 
-  if (error) throw error
+  if (error) {
+    console.error('❌ Error fetching wallets:', error)
+    if (error.code === 'PGRST116' || error.message.includes('relation') || error.message.includes('does not exist')) {
+      console.warn('⚠️ wallets table may not exist - this suggests database migration is needed')
+      return []
+    }
+    throw error
+  }
   return data || []
 }
 
@@ -166,7 +177,14 @@ export const getUserTransactions = async (userId: string, limit = 10): Promise<T
     .order('created_at', { ascending: false })
     .limit(limit)
 
-  if (error) throw error
+  if (error) {
+    console.error('❌ Error fetching transactions:', error)
+    if (error.code === 'PGRST116' || error.message.includes('relation') || error.message.includes('does not exist')) {
+      console.warn('⚠️ transactions table may not exist - this suggests database migration is needed')
+      return []
+    }
+    throw error
+  }
   return data || []
 }
 

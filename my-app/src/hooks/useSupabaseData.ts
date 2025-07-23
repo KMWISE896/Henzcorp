@@ -20,10 +20,50 @@ export const useSupabaseData = () => {
       setLoading(true)
       console.log('🔄 Refreshing data for user:', user.id)
       
-      const [userWallets, userTransactions] = await Promise.all([
-        getUserWallets(user.id),
-        getUserTransactions(user.id, 50)
-      ])
+      // Try to get user wallets with timeout and error handling
+      let userWallets: Wallet[] = []
+      let userTransactions: Transaction[] = []
+      
+      try {
+        console.log('📊 Fetching user wallets...')
+        userWallets = await Promise.race([
+          getUserWallets(user.id),
+          new Promise<Wallet[]>((_, reject) => 
+            setTimeout(() => reject(new Error('Wallet fetch timeout')), 10000)
+          )
+        ])
+        console.log('✅ Wallets fetched:', userWallets.length)
+      } catch (walletError) {
+        console.error('❌ Error fetching wallets:', walletError)
+        // Create default UGX wallet if none exists
+        userWallets = [{
+          id: 'temp-ugx',
+          user_id: user.id,
+          currency: 'UGX',
+          balance: 0,
+          available_balance: 0,
+          locked_balance: 0,
+          wallet_address: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }]
+        console.log('🔧 Using fallback UGX wallet')
+      }
+      
+      try {
+        console.log('📋 Fetching user transactions...')
+        userTransactions = await Promise.race([
+          getUserTransactions(user.id, 50),
+          new Promise<Transaction[]>((_, reject) => 
+            setTimeout(() => reject(new Error('Transaction fetch timeout')), 10000)
+          )
+        ])
+        console.log('✅ Transactions fetched:', userTransactions.length)
+      } catch (transactionError) {
+        console.error('❌ Error fetching transactions:', transactionError)
+        userTransactions = []
+        console.log('🔧 Using empty transactions array')
+      }
       
       setWallets(userWallets)
       setTransactions(userTransactions)
@@ -33,7 +73,20 @@ export const useSupabaseData = () => {
         transactions: userTransactions.length
       })
     } catch (error) {
-      console.error('❌ Error refreshing data:', error)
+      console.error('❌ Critical error refreshing data:', error)
+      // Set fallback data to prevent infinite loading
+      setWallets([{
+        id: 'fallback-ugx',
+        user_id: user.id,
+        currency: 'UGX',
+        balance: 0,
+        available_balance: 0,
+        locked_balance: 0,
+        wallet_address: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      setTransactions([])
     } finally {
       setLoading(false)
     }
