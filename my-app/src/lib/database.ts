@@ -77,7 +77,7 @@ export const signUp = async (
       .select('id')
       .eq('user_id', userId)
       .eq('currency', 'UGX')
-      .maybesingle()
+      .maybeSingle()
 
     if (walletCheckError && walletCheckError.code !== 'PGRST116') throw walletCheckError
 
@@ -133,7 +133,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile> => {
     .from('user_profiles')
     .select('*')
     .eq('id', userId)
-    .maybesingle()
+    .maybeSingle()
 
   if (error) throw error
   return data
