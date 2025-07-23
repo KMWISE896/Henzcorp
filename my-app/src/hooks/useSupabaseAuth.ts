@@ -9,46 +9,44 @@ export const useSupabaseAuth = () => {
   const [loading, setLoading] = useState(true)
   const [session, setSession] = useState<Session | null>(null)
 
-  useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession()
-        setSession(initialSession)
-        setUser(initialSession?.user ?? null)
-        
-        if (initialSession?.user) {
-          await loadUserProfile(initialSession.user.id)
-        }
-      } catch (error) {
-        console.error('Error getting initial session:', error)
-      } finally {
-        setLoading(false)
-      }
+useEffect(() => {
+  const init = async () => {
+    setLoading(true)
+
+    const {
+      data: { session: initialSession },
+    } = await supabase.auth.getSession()
+
+    setSession(initialSession)
+    setUser(initialSession?.user ?? null)
+
+    if (initialSession?.user) {
+      await loadUserProfile(initialSession.user.id)
     }
 
-    getInitialSession()
+    setLoading(false)
+  }
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id)
-        
-        setSession(session)
-        setUser(session?.user ?? null)
-        
-        if (session?.user) {
-          await loadUserProfile(session.user.id)
-        } else {
-          setProfile(null)
-        }
-        
-        setLoading(false)
+  init()
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (_event, session) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+
+      if (session?.user) {
+        await loadUserProfile(session.user.id)
+      } else {
+        setProfile(null)
       }
-    )
 
-    return () => subscription.unsubscribe()
-  }, [])
+      setLoading(false)
+    }
+  )
+
+  return () => subscription.unsubscribe()
+}, [])
+
 
   const loadUserProfile = async (userId: string) => {
     try {
