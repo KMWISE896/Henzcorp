@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Gift } from 'lucide-react';
-import { signUp } from '../lib/supabase';
+import { signUp } from '../lib/database';
 
 interface SignupScreenProps {
   onSignup: () => void;

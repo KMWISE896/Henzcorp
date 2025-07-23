@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, CreditCard, Smartphone, Building, CheckCircle, Clock } from 'lucide-react';
-import { createTransaction, createDeposit, updateWalletBalance, updateTransactionStatus, savePhoneNumber, getSavedPhoneNumber } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import { useAppData } from '../contexts/AppContext';
+import { createTransaction, createDeposit, updateWalletBalance, updateTransactionStatus } from '../lib/database';
+import { useSupabase } from '../contexts/SupabaseContext';
 import TransactionLoader from './TransactionLoader';
 
 interface DepositScreenProps {
@@ -17,24 +16,13 @@ interface DepositScreenProps {
 }
 
 export default function DepositScreen({ onBack, onSuccess, showAlert }: DepositScreenProps) {
-  const { user } = useAuth();
-  const [selectedMethod, setSelectedMethod] = useState<'mtn_money' | 'airtel_money' | 'bank_transfer'>('mtn_money');
+  const { user, getFiatBalance } = useSupabase();
   const [amount, setAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const [depositedAmount, setDepositedAmount] = useState('');
-
-  // Load saved phone number when component mounts or method changes
-  React.useEffect(() => {
-    if (user && (selectedMethod === 'mtn_money' || selectedMethod === 'airtel_money')) {
-      const savedPhone = getSavedPhoneNumber(user.id, 'deposit');
-      if (savedPhone && !phoneNumber) {
-        setPhoneNumber(savedPhone);
-      }
-    }
-  }, [user, selectedMethod]);
 
   const paymentMethods = [
     {
@@ -79,11 +67,6 @@ export default function DepositScreen({ onBack, onSuccess, showAlert }: DepositS
     setIsLoading(true);
 
     try {
-      // Save phone number for future use
-      if ((selectedMethod === 'mtn_money' || selectedMethod === 'airtel_money') && phoneNumber) {
-        savePhoneNumber(user.id, phoneNumber, 'deposit');
-      }
-
       const depositAmount = parseFloat(amount);
       const fee = Math.max(1000, depositAmount * 0.01); // 1% fee, minimum 1000 UGX
 

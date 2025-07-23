@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Send, User, Wallet, CheckCircle, AlertCircle } from 'lucide-react';
-import { createTransaction, createCryptoTransfer, updateWalletBalance, updateTransactionStatus, getUserProfile } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth';
-import { useAppData } from '../contexts/AppContext';
+import { createTransaction, createCryptoTransfer, updateWalletBalance, updateTransactionStatus, getUserProfile } from '../lib/database'
+import { useSupabase } from '../contexts/SupabaseContext';
 
 interface TransferScreenProps {
   onBack: () => void;
@@ -16,8 +15,7 @@ interface TransferScreenProps {
 }
 
 export default function TransferScreen({ onBack, onSuccess, showAlert }: TransferScreenProps) {
-  const { user } = useAuth();
-  const { wallets, getWalletBalance } = useAppData();
+  const { user, wallets, getWalletBalance } = useSupabase();
   const [transferType, setTransferType] = useState<'internal' | 'external'>('internal');
   const [selectedCurrency, setSelectedCurrency] = useState('UGX');
   const [amount, setAmount] = useState('');

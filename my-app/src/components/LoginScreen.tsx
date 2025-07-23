@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Smartphone } from 'lucide-react';
-import { signIn } from '../lib/supabase';
+import { signIn } from '../lib/database';
 
 interface LoginScreenProps {
   onLogin: () => void;

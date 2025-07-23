@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Home, ArrowUpDown, Plus, Minus, Smartphone, Users, User } from 'lucide-react'
 import { useSupabase } from './contexts/SupabaseContext'
 import { useAlert } from './hooks/useAlert'
-import { signIn, signUp, signOut } from './lib/database'
+import { signIn, signUp, signOut } from './lib/supabase-client'
 
 // Import screens
 import LoginScreen from './components/LoginScreen'
@@ -61,7 +61,6 @@ export default function AppDatabase() {
           }}
           onSwitchToSignup={() => setShowLogin(false)}
           showAlert={{ showSuccess, showError, showWarning, showInfo }}
-          authFunction={signIn}
         />
         <AlertContainer alerts={alerts} onClose={hideAlert} />
       </>
@@ -69,11 +68,10 @@ export default function AppDatabase() {
       <>
         <SignupScreen 
           onSignup={() => {
-            showSuccess('Account Created!', 'Welcome to Feezpay! Your account has been created successfully.')
+            showSuccess('Account Created!', 'Welcome to HenzCorp! Your account has been created successfully.')
           }}
           onSwitchToLogin={() => setShowLogin(true)}
           showAlert={{ showSuccess, showError, showWarning, showInfo }}
-          authFunction={signUp}
         />
         <AlertContainer alerts={alerts} onClose={hideAlert} />
       </>

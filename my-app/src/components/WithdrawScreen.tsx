@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Smartphone, Building, CheckCircle, AlertCircle } from 'lucide-react';
-import { createTransaction, createWithdrawal, updateWalletBalance, updateTransactionStatus, savePhoneNumber, getSavedPhoneNumber } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import { useAppData } from '../contexts/AppContext';
+import { createTransaction, createWithdrawal, updateWalletBalance, updateTransactionStatus } from '../lib/database';
+import { useSupabase } from '../contexts/SupabaseContext';
 import TransactionLoader from './TransactionLoader';
 
 interface WithdrawScreenProps {
@@ -17,8 +16,7 @@ interface WithdrawScreenProps {
 }
 
 export default function WithdrawScreen({ onBack, onSuccess, showAlert }: WithdrawScreenProps) {
-  const { user } = useAuth();
-  const { getFiatBalance } = useAppData();
+  const { user, getFiatBalance } = useSupabase();
   const [selectedMethod, setSelectedMethod] = useState<'mtn_money' | 'airtel_money' | 'bank_transfer'>('mtn_money');
   const [amount, setAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -31,16 +29,6 @@ export default function WithdrawScreen({ onBack, onSuccess, showAlert }: Withdra
   const [showSuccess, setShowSuccess] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const [withdrawnAmount, setWithdrawnAmount] = useState('');
-
-  // Load saved phone number when component mounts or method changes
-  React.useEffect(() => {
-    if (user && (selectedMethod === 'mtn_money' || selectedMethod === 'airtel_money')) {
-      const savedPhone = getSavedPhoneNumber(user.id, 'withdrawal');
-      if (savedPhone && !phoneNumber) {
-        setPhoneNumber(savedPhone);
-      }
-    }
-  }, [user, selectedMethod]);
 
   const availableBalance = getFiatBalance();
 
@@ -105,11 +93,6 @@ export default function WithdrawScreen({ onBack, onSuccess, showAlert }: Withdra
     setIsLoading(true);
 
     try {
-      // Save phone number for future use
-      if ((selectedMethod === 'mtn_money' || selectedMethod === 'airtel_money') && phoneNumber) {
-        savePhoneNumber(user.id, phoneNumber, 'withdrawal');
-      }
-
       // Create transaction record
       const transaction = await createTransaction({
         user_id: user.id,

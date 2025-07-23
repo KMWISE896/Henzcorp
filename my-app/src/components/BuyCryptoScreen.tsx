@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, TrendingUp, TrendingDown, Bitcoin, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
-import { getCryptoAssets, createTransaction, createCryptoTrade, updateWalletBalance, updateTransactionStatus } from '../lib/supabase';
-import type {CryptoAsset } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import { useAppData } from '../contexts/AppContext';
+import { getCryptoAssets, createTransaction, createCryptoTrade, updateWalletBalance, updateTransactionStatus } from '../lib/database';
+import type {CryptoAsset } from '../lib/database';
+import { useSupabase } from '../contexts/SupabaseContext';
 
 interface BuyCryptoScreenProps {
   onBack: () => void;
@@ -17,8 +16,7 @@ interface BuyCryptoScreenProps {
 }
 
 export default function BuyCryptoScreen({ onBack, onSuccess, showAlert }: BuyCryptoScreenProps) {
-  const { user } = useAuth();
-  const { getFiatBalance } = useAppData();
+  const { user, getFiatBalance } = useSupabase();
   const [cryptoAssets, setCryptoAssets] = useState<CryptoAsset[]>([]);
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoAsset | null>(null);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');

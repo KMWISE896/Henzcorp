@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, Share2, Users, Gift, DollarSign, Trophy, Check, ArrowLeft } from 'lucide-react';
-import { getReferralStats, getUserReferrals } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
+import { getReferralStats, getUserReferrals } from '../lib/database';
+import { useSupabase } from '../contexts/SupabaseContext';
 
 interface ReferralScreenProps {
   onBack: () => void;
@@ -14,7 +14,7 @@ interface ReferralScreenProps {
 }
 
 export default function ReferralScreen({ onBack, showAlert }: ReferralScreenProps) {
-  const { user, profile } = useAuth();
+  const { user, profile } = useSupabase();
   const [copied, setCopied] = useState(false);
   const [referralStats, setReferralStats] = useState({
     totalReferrals: 0,

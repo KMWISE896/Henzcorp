@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Smartphone, CheckCircle, User, Users } from 'lucide-react';
-import { createTransaction, createAirtimePurchase, updateWalletBalance, updateTransactionStatus, formatPhoneNumber, detectNetwork, savePhoneNumber, getSavedPhoneNumber } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import { useAppData } from '../contexts/AppContext';
+import { createTransaction, createAirtimePurchase, updateWalletBalance, updateTransactionStatus, formatPhoneNumber, detectNetwork } from '../lib/database';
+import { useSupabase } from '../contexts/SupabaseContext';
 import TransactionLoader from './TransactionLoader';
 
 interface AirtimeScreenProps {
@@ -17,8 +16,7 @@ interface AirtimeScreenProps {
 }
 
 export default function AirtimeScreen({ onBack, onSuccess, showAlert }: AirtimeScreenProps) {
-  const { user, profile } = useAuth();
-  const { getFiatBalance } = useAppData();
+  const { user, profile, getFiatBalance } = useSupabase();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [amount, setAmount] = useState('');
   const [recipientType, setRecipientType] = useState<'self' | 'other'>('self');
@@ -27,21 +25,14 @@ export default function AirtimeScreen({ onBack, onSuccess, showAlert }: AirtimeS
   const [showLoader, setShowLoader] = useState(false);
   const [purchasedAmount, setPurchasedAmount] = useState('');
 
-  // Load saved phone number when component mounts or recipient type changes
+  // Auto-fill with user's phone if selecting self
   React.useEffect(() => {
-    if (user) {
-      if (recipientType === 'self' && profile?.phone) {
-        setPhoneNumber(profile.phone);
-      } else if (recipientType === 'other') {
-        const savedPhone = getSavedPhoneNumber(user.id, 'airtime');
-        if (savedPhone) {
-          setPhoneNumber(savedPhone);
-        } else {
-          setPhoneNumber('');
-        }
-      }
+    if (recipientType === 'self' && profile?.phone) {
+      setPhoneNumber(profile.phone);
+    } else if (recipientType === 'other') {
+      setPhoneNumber('');
     }
-  }, [user, profile, recipientType]);
+  }, [recipientType, profile]);
 
   const availableBalance = getFiatBalance();
   const detectedNetwork = phoneNumber ? detectNetwork(phoneNumber) : null;
@@ -92,11 +83,6 @@ export default function AirtimeScreen({ onBack, onSuccess, showAlert }: AirtimeS
     setIsLoading(true);
 
     try {
-      // Save phone number for future use (only for 'other' recipients)
-      if (recipientType === 'other' && phoneNumber) {
-        savePhoneNumber(user.id, phoneNumber, 'airtime');
-      }
-
       const formattedPhone = formatPhoneNumber(phoneNumber);
       const network = detectNetwork(formattedPhone);
 
