@@ -19,6 +19,7 @@ export default function DepositScreen({ onBack, onSuccess, showAlert }: DepositS
   const { user, getFiatBalance } = useSupabase();
   const [amount, setAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null); 
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
