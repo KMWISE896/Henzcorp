@@ -79,11 +79,22 @@ export default function AccountScreen({ onBack, onLogout, showAlert }: AccountSc
 
   const handleLogout = async () => {
     try {
+      console.log('🚪 Account logout initiated...')
       await signOut();
+      console.log('✅ Supabase logout successful')
+      
+      // Clear any cached data
+      localStorage.clear()
+      sessionStorage.clear()
+      console.log('🗑️ Storage cleared')
+      
       onLogout();
     } catch (error) {
       console.error('Logout error:', error);
-      onLogout(); // Logout anyway
+      // Even if logout fails, clear storage and proceed
+      localStorage.clear()
+      sessionStorage.clear()
+      onLogout() // Logout anyway
     }
   };
 

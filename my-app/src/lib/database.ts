@@ -63,8 +63,13 @@ export const signIn = async (email: string, password: string) => {
 }
 
 export const signOut = async () => {
+  console.log('🚪 Signing out from Supabase...')
   const { error } = await supabase.auth.signOut()
-  if (error) throw error
+  if (error) {
+    console.error('❌ Supabase signOut error:', error)
+    throw error
+  }
+  console.log('✅ Successfully signed out from Supabase')
 }
 
 export const getCurrentSession = async () => {

@@ -49,10 +49,23 @@ export default function AppDatabase() {
           <button
             onClick={async () => {
               try {
+                console.log('🚪 Force logout initiated...')
+                // Clear Supabase session
                 await signOut()
+                console.log('✅ Supabase session cleared')
+                
+                // Clear any local storage
+                localStorage.clear()
+                sessionStorage.clear()
+                console.log('🗑️ Local storage cleared')
+                
+                // Force page reload to reset all state
                 window.location.reload()
               } catch (error) {
                 console.error('Logout error:', error)
+                // Even if logout fails, clear storage and reload
+                localStorage.clear()
+                sessionStorage.clear()
                 window.location.reload()
               }
             }}
