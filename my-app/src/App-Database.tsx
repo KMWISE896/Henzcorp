@@ -3,6 +3,7 @@ import { Home, ArrowUpDown, Plus, Minus, Smartphone, Users, User } from 'lucide-
 import { useSupabase } from './contexts/SupabaseContext'
 import { useAlert } from './hooks/useAlert'
 import { signIn, signUp, signOut } from './lib/database'
+import { supabase } from './lib/supabase-client'
 
 // Import screens
 import LoginScreen from './components/LoginScreen'
@@ -50,23 +51,31 @@ export default function AppDatabase() {
             onClick={async () => {
               try {
                 console.log('🚪 Force logout initiated...')
-                // Clear Supabase session
-                await signOut()
-                console.log('✅ Supabase session cleared')
                 
-                // Clear any local storage
-                localStorage.clear()
-                sessionStorage.clear()
-                console.log('🗑️ Local storage cleared')
+                // First, try to sign out from Supabase
+                try {
+                  await supabase.auth.signOut()
+                  console.log('✅ Supabase signOut successful')
+                } catch (authError) {
+                  console.warn('⚠️ Supabase signOut failed:', authError)
+                }
                 
-                // Force page reload to reset all state
-                window.location.reload()
+                // Clear all storage regardless
+                try {
+                  localStorage.clear()
+                  sessionStorage.clear()
+                  console.log('🗑️ Storage cleared')
+                } catch (storageError) {
+                  console.warn('⚠️ Storage clear failed:', storageError)
+                }
+                
+                // Force reload to completely reset the app
+                console.log('🔄 Forcing page reload...')
+                window.location.href = window.location.origin
               } catch (error) {
                 console.error('Logout error:', error)
-                // Even if logout fails, clear storage and reload
-                localStorage.clear()
-                sessionStorage.clear()
-                window.location.reload()
+                // Nuclear option: force reload anyway
+                window.location.href = window.location.origin
               }
             }}
             className="mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors"
