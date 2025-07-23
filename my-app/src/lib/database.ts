@@ -78,7 +78,7 @@ const { data: existingWallet, error: walletCheckError } = await supabase
   .select('id')
   .eq('user_id', userId)
   .eq('currency', 'UGX')
-  .maybeSingle()
+ 
 
 if (walletCheckError) throw walletCheckError
 
@@ -134,7 +134,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile> => {
     .from('user_profiles')
     .select('*')
     .eq('id', userId)
-    .maybeSingle()
+    
 
   if (error) throw error
   return data
