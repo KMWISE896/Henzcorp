@@ -1,85 +1,228 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase-client'
-import { getUserProfile, type UserProfile } from '../lib/database'
-import type { User, Session } from '@supabase/supabase-js'
+import { supabase } from './supabase-client'
+import type { Database } from './supabase-client'
 
-export const useSupabaseAuth = () => {
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
+// === Type Aliases ===
+export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
+export type Wallet = Database['public']['Tables']['wallets']['Row']
+export type Transaction = Database['public']['Tables']['transactions']['Row']
+export type CryptoAsset = Database['public']['Tables']['crypto_assets']['Row']
+export type Referral = Database['public']['Tables']['referrals']['Row']
 
-  useEffect(() => {
-    const init = async () => {
-      setLoading(true)
-      try {
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession()
-        if (error) throw error
+// === User Profile ===
+export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle()
 
-        if (initialSession) {
-          console.log('✅ Initial session found:', initialSession.user.id)
-          setSession(initialSession)
-          setUser(initialSession.user)
-          await loadUserProfile(initialSession.user.id)
-        } else {
-          console.log('ℹ️ No active session found')
-        }
-      } catch (err) {
-        console.error('❌ Error getting session:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    init()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        console.log('🔄 Auth state changed:', _event, newSession?.user?.id)
-        setSession(newSession)
-        const newUser = newSession?.user ?? null
-        setUser(newUser)
-
-        if (newUser) {
-          await loadUserProfile(newUser.id)
-        } else {
-          setProfile(null)
-        }
-      }
-    )
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  const loadUserProfile = async (userId: string) => {
-    try {
-      const userProfile = await getUserProfile(userId)
-      if (userProfile) {
-        setProfile(userProfile)
-      } else {
-        console.warn('⚠️ No profile found for user ID:', userId)
-        setProfile(null)
-      }
-    } catch (err) {
-      console.error('❌ Failed to load user profile:', err)
-      setProfile(null)
-    }
+  if (error) {
+    console.error('❌ Error fetching user profile:', error)
+    throw error
   }
 
-  const refreshProfile = async () => {
-    if (user) {
-      await loadUserProfile(user.id)
-    }
-  }
+  return data ?? null
+}
 
-  return {
-    user,
-    profile,
-    session,
-    loading,
-    isAuthenticated: !!user,
-    refreshProfile,
-  }
+export const updateUserProfile = async (
+  userId: string,
+  updates: Partial<UserProfile>
+): Promise<UserProfile> => {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+    .select()
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+}
+
+// === Wallets ===
+export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
+  const { data, error } = await supabase
+    .from('wallets')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  return data ?? []
+}
+
+export const getWalletBalance = async (
+  userId: string,
+  currency: string
+): Promise<number> => {
+  const { data, error } = await supabase.rpc('get_user_balance', {
+    user_uuid: userId,
+    wallet_currency: currency
+  })
+
+  if (error) throw error
+  return data ?? 0
+}
+
+export const updateWalletBalance = async (
+  userId: string,
+  currency: string,
+  amount: number,
+  operation: 'add' | 'subtract' = 'add'
+) => {
+  const { data, error } = await supabase.rpc('update_wallet_balance', {
+    user_uuid: userId,
+    wallet_currency: currency,
+    amount_change: amount,
+    operation_type: operation
+  })
+
+  if (error) throw error
+  return data
+}
+
+// === Transactions ===
+export const createTransaction = async (
+  transactionData: Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'reference_id'>
+): Promise<Transaction> => {
+  const { data, error } = await supabase
+    .from('transactions')
+    .insert(transactionData)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export const getUserTransactions = async (
+  userId: string,
+  limit = 10
+): Promise<Transaction[]> => {
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+  return data ?? []
+}
+
+export const updateTransactionStatus = async (
+  transactionId: string,
+  status: Transaction['status']
+): Promise<Transaction> => {
+  const { data, error } = await supabase
+    .from('transactions')
+    .update({
+      status,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', transactionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// === Crypto Assets ===
+export const getCryptoAssets = async (): Promise<CryptoAsset[]> => {
+  const { data, error } = await supabase
+    .from('crypto_assets')
+    .select('*')
+    .eq('is_active', true)
+    .order('symbol', { ascending: true })
+
+  if (error) throw error
+  return data ?? []
+}
+
+// === Deposit / Withdrawal ===
+export const createDeposit = async (depositData: any) => {
+  const { data, error } = await supabase
+    .from('deposits')
+    .insert(depositData)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export const createWithdrawal = async (withdrawalData: any) => {
+  const { data, error } = await supabase
+    .from('withdrawals')
+    .insert(withdrawalData)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// === Airtime Purchases ===
+export const createAirtimePurchase = async (airtimeData: any) => {
+  const { data, error } = await supabase
+    .from('airtime_purchases')
+    .insert(airtimeData)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// === Crypto Trading ===
+export const createCryptoTrade = async (tradeData: any) => {
+  const { data, error } = await supabase
+    .from('crypto_trades')
+    .insert(tradeData)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export const createCryptoTransfer = async (transferData: any) => {
+  const { data, error } = await supabase
+    .from('crypto_transfers')
+    .insert(transferData)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// === Referrals ===
+export const getReferralStats = async (userId: string) => {
+  const { data, error } = await supabase
+    .rpc('get_referral_stats', {
+      user_uuid: userId
+    })
+
+  if (error) throw error
+  return data ?? []
+}
+
+export const getUserReferrals = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('referrals')
+    .select(`
+      *,
+      referred:user_profiles!referrals_referred_id_fkey(
+        first_name,
+        last_name,
+        created_at
+      )
+    `)
+    .eq('referrer_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data ?? []
 }
