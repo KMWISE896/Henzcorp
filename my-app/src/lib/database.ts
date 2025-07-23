@@ -146,7 +146,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', userId)
     .select()
-    .maybeSingle()
+    
 
   if (error) throw error
   return data
