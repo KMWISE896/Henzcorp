@@ -122,6 +122,8 @@ export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: true })
+  console.log('🧾 Wallet data:', data)
+console.error('⚠️ Wallet error:', error)
 
   if (error) {
     console.error('❌ Error fetching wallets:', error)
