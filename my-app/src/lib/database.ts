@@ -1,17 +1,17 @@
 import { supabase } from './supabase-client'
 import type { Database } from './supabase-client'
 
-// Type aliases
+// Type aliases for easier use
 export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
 export type Wallet = Database['public']['Tables']['wallets']['Row']
 export type Transaction = Database['public']['Tables']['transactions']['Row']
 export type CryptoAsset = Database['public']['Tables']['crypto_assets']['Row']
 export type Referral = Database['public']['Tables']['referrals']['Row']
 
-// Auth functions
+// Authentication functions
 export const signUp = async (
-  email: string,
-  password: string,
+  email: string, 
+  password: string, 
   userData: {
     firstName: string
     lastName: string
@@ -20,25 +20,54 @@ export const signUp = async (
   }
 ) => {
   try {
-    // Format phone number before passing to auth
-    const formattedPhone = formatPhoneNumber(userData.phone)
-
-    // Pass all user data through auth metadata - the backend trigger will handle profile/wallet creation
+    // Sign up user with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          phone: formattedPhone,
-          referral_code: userData.referralCode || null
-        }
-      }
     })
 
     if (authError) throw authError
     if (!authData.user) throw new Error('User creation failed')
+
+    // Find referrer if referral code provided
+    let referrerId: string | null = null
+    if (userData.referralCode) {
+      const { data: referrer } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('referral_code', userData.referralCode)
+        .single()
+      
+      referrerId = referrer?.id || null
+    }
+
+    // Create user profile
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .insert({
+        id: authData.user.id,
+        first_name: userData.firstName,
+        last_name: userData.lastName,
+        phone: userData.phone,
+        referral_code: generateReferralCode(),
+        referred_by: referrerId,
+        verification_status: 'verified'
+      })
+
+    if (profileError) throw profileError
+
+    // Create initial UGX wallet
+    const { error: walletError } = await supabase
+      .from('wallets')
+      .insert({
+        user_id: authData.user.id,
+        currency: 'UGX',
+        balance: 0,
+        available_balance: 0,
+        locked_balance: 0
+      })
+
+    if (walletError) throw walletError
 
     return authData
   } catch (error) {
@@ -72,24 +101,15 @@ export const getCurrentSession = async () => {
   return session
 }
 
-// User Profile
-export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+// User Profile functions
+export const getUserProfile = async (userId: string): Promise<UserProfile> => {
   const { data, error } = await supabase
     .from('user_profiles')
     .select('*')
     .eq('id', userId)
-    .maybeSingle()
+    .single()
 
-  if (error) {
-    console.error('❌ Error fetching user profile:', error)
-    throw error
-  }
-
-  if (!data) {
-    console.warn('⚠️ No profile found for user ID:', userId)
-    return null
-  }
-
+  if (error) throw error
   return data
 }
 
@@ -99,13 +119,13 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', userId)
     .select()
-    .maybeSingle()
+    .single()
 
   if (error) throw error
   return data
 }
 
-// Wallets
+// Wallet functions
 export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
   const { data, error } = await supabase
     .from('wallets')
@@ -146,7 +166,7 @@ export const updateWalletBalance = async (
   return data
 }
 
-// Transactions
+// Transaction functions
 export const createTransaction = async (transactionData: Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'reference_id'>): Promise<Transaction> => {
   const { data, error } = await supabase
     .from('transactions')
@@ -173,9 +193,9 @@ export const getUserTransactions = async (userId: string, limit = 10): Promise<T
 export const updateTransactionStatus = async (transactionId: string, status: Transaction['status']) => {
   const { data, error } = await supabase
     .from('transactions')
-    .update({
-      status,
-      updated_at: new Date().toISOString()
+    .update({ 
+      status, 
+      updated_at: new Date().toISOString() 
     })
     .eq('id', transactionId)
     .select()
@@ -185,7 +205,7 @@ export const updateTransactionStatus = async (transactionId: string, status: Tra
   return data
 }
 
-// Crypto
+// Crypto functions
 export const getCryptoAssets = async (): Promise<CryptoAsset[]> => {
   const { data, error } = await supabase
     .from('crypto_assets')
@@ -197,7 +217,7 @@ export const getCryptoAssets = async (): Promise<CryptoAsset[]> => {
   return data || []
 }
 
-// Deposit / Withdrawal
+// Deposit/Withdrawal functions
 export const createDeposit = async (depositData: any) => {
   const { data, error } = await supabase
     .from('deposits')
@@ -220,7 +240,7 @@ export const createWithdrawal = async (withdrawalData: any) => {
   return data
 }
 
-// Airtime
+// Airtime functions
 export const createAirtimePurchase = async (airtimeData: any) => {
   const { data, error } = await supabase
     .from('airtime_purchases')
@@ -232,7 +252,7 @@ export const createAirtimePurchase = async (airtimeData: any) => {
   return data
 }
 
-// Crypto Trading
+// Crypto trading functions
 export const createCryptoTrade = async (tradeData: any) => {
   const { data, error } = await supabase
     .from('crypto_trades')
@@ -255,7 +275,7 @@ export const createCryptoTransfer = async (transferData: any) => {
   return data
 }
 
-// Referrals
+// Referral functions
 export const getReferralStats = async (userId: string) => {
   const { data, error } = await supabase
     .rpc('get_referral_stats', {
@@ -284,7 +304,7 @@ export const getUserReferrals = async (userId: string) => {
   return data || []
 }
 
-// Utils
+// Utility functions
 export const formatPhoneNumber = (phone: string): string => {
   const cleaned = phone.replace(/\D/g, '')
   if (cleaned.startsWith('256')) {
@@ -302,24 +322,25 @@ export const formatPhoneNumber = (phone: string): string => {
 export const detectNetwork = (phone: string): 'mtn' | 'airtel' | 'utl' => {
   const cleaned = phone.replace(/\D/g, '')
   const lastDigits = cleaned.slice(-9)
-
-  if (lastDigits.startsWith('77') || lastDigits.startsWith('78') ||
+  
+  if (lastDigits.startsWith('77') || lastDigits.startsWith('78') || 
       lastDigits.startsWith('76') || lastDigits.startsWith('39')) {
     return 'mtn'
   }
-
-  if (lastDigits.startsWith('75') || lastDigits.startsWith('70') ||
+  
+  if (lastDigits.startsWith('75') || lastDigits.startsWith('70') || 
       lastDigits.startsWith('74') || lastDigits.startsWith('20')) {
     return 'airtel'
   }
-
+  
   if (lastDigits.startsWith('71') || lastDigits.startsWith('31')) {
     return 'utl'
   }
-
+  
   return 'mtn'
 }
 
+// Helper function to generate referral codes
 const generateReferralCode = (): string => {
   const year = new Date().getFullYear()
   const randomString = Math.random().toString(36).substring(2, 8).toUpperCase()
