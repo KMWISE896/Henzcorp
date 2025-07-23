@@ -80,7 +80,7 @@ export const signUp = async (
     console.error('Signup error:', error)
     throw error
   }
-}
+
 
 // Step 5: Create UGX wallet if not exists
 const { data: existingWallet, error: walletCheckError } = await supabase
