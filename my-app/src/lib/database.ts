@@ -20,7 +20,7 @@ export const signUp = async (
   }
 ) => {
   try {
-    // Sign up user with Supabase Auth
+    // Step 1: Sign up user with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -29,45 +29,70 @@ export const signUp = async (
     if (authError) throw authError
     if (!authData.user) throw new Error('User creation failed')
 
-    // Find referrer if referral code provided
+    const userId = authData.user.id
+
+    // Step 2: Resolve referral code if provided
     let referrerId: string | null = null
     if (userData.referralCode) {
-      const { data: referrer } = await supabase
+      const { data: referrer, error: referrerError } = await supabase
         .from('user_profiles')
         .select('id')
         .eq('referral_code', userData.referralCode)
         .single()
-      
-      referrerId = referrer?.id || null
+
+      if (referrerError && referrerError.code !== 'PGRST116') throw referrerError
+      referrerId = referrer?.id ?? null
     }
 
-    // Create user profile
-    const { error: profileError } = await supabase
+    // Step 3: Check if user profile already exists
+    const { data: existingProfile, error: profileCheckError } = await supabase
       .from('user_profiles')
-      .insert({
-        id: authData.user.id,
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        phone: userData.phone,
-        referral_code: generateReferralCode(),
-        referred_by: referrerId,
-        verification_status: 'verified'
-      })
+      .select('id')
+      .eq('id', userId)
+      .single()
 
-    if (profileError) throw profileError
+    if (profileCheckError && profileCheckError.code !== 'PGRST116') throw profileCheckError
 
-    // Create initial UGX wallet
-    const { error: walletError } = await supabase
+    // Step 4: Insert user profile if not exists
+    if (!existingProfile) {
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          phone: userData.phone,
+          referral_code: generateReferralCode(),
+          referred_by: referrerId,
+          verification_status: 'verified'
+        })
+
+      if (profileError) throw profileError
+    }
+
+    // Step 5: Create UGX wallet if not exists
+    const { data: existingWallet, error: walletCheckError } = await supabase
       .from('wallets')
-      .insert({
-        user_id: authData.user.id,
-        currency: 'UGX',
-        balance: 0,
-        available_balance: 0,
-        locked_balance: 0
-      })
+      .select('id')
+      .eq('user_id', userId)
+      .eq('currency', 'UGX')
+      .single()
 
-    if (walletError) throw walletError
+    if (walletCheckError && walletCheckError.code !== 'PGRST116') throw walletCheckError
+
+    if (!existingWallet) {
+      const { error: walletError } = await supabase
+        .from('wallets')
+        .insert({
+          user_id: userId,
+          currency: 'UGX',
+          balance: 0,
+          available_balance: 0,
+          locked_balance: 0
+        })
+
+      if (walletError) throw walletError
+    }
 
     return authData
   } catch (error) {
