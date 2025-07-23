@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Home, ArrowUpDown, Plus, Minus, Smartphone, Users, User } from 'lucide-react'
 import { useSupabase } from './contexts/SupabaseContext'
 import { useAlert } from './hooks/useAlert'
-import { signIn, signUp, signOut } from './lib/supabase-client'
+import { signIn, signUp, signOut } from './lib/database'
 
 // Import screens
 import LoginScreen from './components/LoginScreen'
