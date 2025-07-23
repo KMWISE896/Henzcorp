@@ -1,6 +1,10 @@
 // Test Supabase connection and run migration
 import { createClient } from '@supabase/supabase-js'
 import fs from 'fs'
+import { config } from 'dotenv'
+
+// Load environment variables from .env file
+config()
 
 // Load environment variables
 const supabaseUrl = process.env.VITE_SUPABASE_URL
