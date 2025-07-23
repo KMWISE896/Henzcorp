@@ -73,14 +73,23 @@ export const getCurrentSession = async () => {
 }
 
 // User Profile
-export const getUserProfile = async (userId: string): Promise<UserProfile> => {
+export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   const { data, error } = await supabase
     .from('user_profiles')
     .select('*')
     .eq('id', userId)
     .maybeSingle()
 
-  if (error) throw error
+  if (error) {
+    console.error('❌ Error fetching user profile:', error)
+    throw error
+  }
+
+  if (!data) {
+    console.warn('⚠️ No profile found for user ID:', userId)
+    return null
+  }
+
   return data
 }
 
