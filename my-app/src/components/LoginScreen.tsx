@@ -11,9 +11,10 @@ interface LoginScreenProps {
     showWarning: (title: string, message?: string) => void;
     showInfo: (title: string, message?: string) => void;
   };
+  onLoginSubmit?: (email: string, password: string) => Promise<void>;
 }
 
-export default function LoginScreen({ onLogin, onSwitchToSignup, showAlert }: LoginScreenProps) {
+export default function LoginScreen({ onLogin, onSwitchToSignup, showAlert, onLoginSubmit }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,7 +31,11 @@ export default function LoginScreen({ onLogin, onSwitchToSignup, showAlert }: Lo
     setIsLoading(true);
     
     try {
-      await signIn(email.trim(), password);
+      if (onLoginSubmit) {
+        await onLoginSubmit(email.trim(), password);
+      } else {
+        await signIn(email.trim(), password);
+      }
       onLogin();
     } catch (error: any) {
       console.error('Login error:', error);

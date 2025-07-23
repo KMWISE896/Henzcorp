@@ -1,9 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Home, ArrowUpDown, Plus, Minus, Smartphone, Users, User } from 'lucide-react'
-import { useSupabase } from './contexts/SupabaseContext'
 import { useAlert } from './hooks/useAlert'
-import { signIn, signUp, signOut } from './lib/database'
-import { supabase } from './lib/supabase-client'
 
 // Import screens
 import LoginScreen from './components/LoginScreen'
@@ -18,27 +15,242 @@ import AccountScreen from './components/AccountScreen'
 import BottomNavigation from './components/BottomNavigation'
 import AlertContainer from './components/AlertContainer'
 
+// Import database functions
+import { 
+  signIn as dbSignIn, 
+  signUp as dbSignUp, 
+  signOut as dbSignOut,
+  getUserProfile,
+  getUserWallets,
+  getUserTransactions,
+  type UserProfile,
+  type Wallet,
+  type Transaction
+} from './lib/database'
+
 type Screen = 'home' | 'deposit' | 'withdraw' | 'airtime' | 'buy-crypto' | 'transfer' | 'referral' | 'account'
 
+interface AppState {
+  user: any | null
+  profile: UserProfile | null
+  wallets: Wallet[]
+  transactions: Transaction[]
+  isAuthenticated: boolean
+  loading: boolean
+  dataLoading: boolean
+}
+
 export default function AppDatabase() {
-  const { 
-    user, 
-    profile, 
-    loading: authLoading,
-    wallets,
-    transactions,
-    dataLoading,
-    refreshData,
-    getFiatBalance,
-    getCryptoBalanceUGX
-  } = useSupabase()
-  
   const { alerts, hideAlert, showSuccess, showError, showWarning, showInfo } = useAlert()
   const [currentScreen, setCurrentScreen] = useState<Screen>('home')
   const [showLogin, setShowLogin] = useState(true)
+  const [appState, setAppState] = useState<AppState>({
+    user: null,
+    profile: null,
+    wallets: [],
+    transactions: [],
+    isAuthenticated: false,
+    loading: true,
+    dataLoading: false
+  })
 
-  // Show loading screen while checking authentication
-  if (authLoading) {
+  // Initialize app state
+  useEffect(() => {
+    initializeApp()
+  }, [])
+
+  const initializeApp = async () => {
+    console.log('🚀 Initializing app...')
+    
+    try {
+      // Check if we have a stored session
+      const storedUser = localStorage.getItem('henzcorp_current_user')
+      
+      if (storedUser) {
+        const userData = JSON.parse(storedUser)
+        console.log('📱 Found stored session:', userData)
+        
+        setAppState(prev => ({
+          ...prev,
+          user: userData.user,
+          isAuthenticated: true,
+          loading: false
+        }))
+        
+        // Load user data
+        await loadUserData(userData.user.id)
+      } else {
+        console.log('🔍 No stored session found')
+        setAppState(prev => ({
+          ...prev,
+          loading: false
+        }))
+      }
+    } catch (error) {
+      console.error('❌ Error initializing app:', error)
+      setAppState(prev => ({
+        ...prev,
+        loading: false
+      }))
+    }
+  }
+
+  const loadUserData = async (userId: string) => {
+    console.log('📊 Loading user data for:', userId)
+    setAppState(prev => ({ ...prev, dataLoading: true }))
+    
+    try {
+      // Load profile
+      const profile = await getUserProfile(userId)
+      console.log('👤 Profile loaded:', profile)
+      
+      // Load wallets
+      const wallets = await getUserWallets(userId)
+      console.log('💰 Wallets loaded:', wallets.length)
+      
+      // Load transactions
+      const transactions = await getUserTransactions(userId, 10)
+      console.log('📋 Transactions loaded:', transactions.length)
+      
+      setAppState(prev => ({
+        ...prev,
+        profile,
+        wallets,
+        transactions,
+        dataLoading: false
+      }))
+    } catch (error) {
+      console.error('❌ Error loading user data:', error)
+      
+      // Provide fallback data
+      setAppState(prev => ({
+        ...prev,
+        profile: null,
+        wallets: [{
+          id: 'fallback-ugx',
+          user_id: userId,
+          currency: 'UGX',
+          balance: 0,
+          available_balance: 0,
+          locked_balance: 0,
+          wallet_address: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }],
+        transactions: [],
+        dataLoading: false
+      }))
+    }
+  }
+
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      console.log('🔐 Attempting login...')
+      const result = await dbSignIn(email, password)
+      
+      setAppState(prev => ({
+        ...prev,
+        user: result.user,
+        isAuthenticated: true
+      }))
+      
+      await loadUserData(result.user.id)
+      showSuccess('Welcome back!', 'You have successfully logged in.')
+    } catch (error: any) {
+      console.error('❌ Login error:', error)
+      showError('Login Failed', error.message || 'Please check your credentials.')
+      throw error
+    }
+  }
+
+  const handleSignup = async (email: string, password: string, userData: any) => {
+    try {
+      console.log('📝 Attempting signup...')
+      const result = await dbSignUp(email, password, userData)
+      
+      setAppState(prev => ({
+        ...prev,
+        user: result.user,
+        isAuthenticated: true
+      }))
+      
+      await loadUserData(result.user.id)
+      showSuccess('Account Created!', 'Welcome to HenzCorp!')
+    } catch (error: any) {
+      console.error('❌ Signup error:', error)
+      showError('Signup Failed', error.message || 'Please try again.')
+      throw error
+    }
+  }
+
+  const handleLogout = async () => {
+    console.log('🚪 Logging out...')
+    
+    try {
+      // Sign out from database
+      await dbSignOut()
+      console.log('✅ Database logout successful')
+    } catch (error) {
+      console.warn('⚠️ Database logout failed:', error)
+    }
+    
+    // Clear all local state
+    setAppState({
+      user: null,
+      profile: null,
+      wallets: [],
+      transactions: [],
+      isAuthenticated: false,
+      loading: false,
+      dataLoading: false
+    })
+    
+    // Clear storage
+    localStorage.clear()
+    sessionStorage.clear()
+    
+    // Reset to login screen
+    setShowLogin(true)
+    setCurrentScreen('home')
+    
+    console.log('✅ Logout completed')
+    showInfo('Logged Out', 'You have been successfully logged out.')
+  }
+
+  const refreshData = async () => {
+    if (appState.user) {
+      await loadUserData(appState.user.id)
+    }
+  }
+
+  const getFiatBalance = (): number => {
+    const wallet = appState.wallets.find(w => w.currency === 'UGX')
+    return wallet?.available_balance || 0
+  }
+
+  const getCryptoBalanceUGX = (): number => {
+    const conversionRates: { [key: string]: number } = {
+      'BTC': 165420000,
+      'ETH': 8750000,
+      'LTC': 380000,
+      'USDT': 3700
+    }
+    
+    return appState.wallets
+      .filter(w => w.currency !== 'UGX')
+      .reduce((sum, wallet) => {
+        const rate = conversionRates[wallet.currency] || 1
+        return sum + (wallet.available_balance * rate)
+      }, 0)
+  }
+
+  const getWalletBalance = (currency: string): number => {
+    const wallet = appState.wallets.find(w => w.currency === currency)
+    return wallet?.available_balance || 0
+  }
+
+  // Show loading screen with timeout
+  if (appState.loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -46,39 +258,10 @@ export default function AppDatabase() {
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             <div className="absolute inset-0 w-12 h-12 border-4 border-purple-500 border-r-transparent rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
-          <p className="text-white">Loading...</p>
+          <p className="text-white mb-4">Loading...</p>
           <button
-            onClick={async () => {
-              try {
-                console.log('🚪 Force logout initiated...')
-                
-                // First, try to sign out from Supabase
-                try {
-                  await supabase.auth.signOut()
-                  console.log('✅ Supabase signOut successful')
-                } catch (authError) {
-                  console.warn('⚠️ Supabase signOut failed:', authError)
-                }
-                
-                // Clear all storage regardless
-                try {
-                  localStorage.clear()
-                  sessionStorage.clear()
-                  console.log('🗑️ Storage cleared')
-                } catch (storageError) {
-                  console.warn('⚠️ Storage clear failed:', storageError)
-                }
-                
-                // Force reload to completely reset the app
-                console.log('🔄 Forcing page reload...')
-                window.location.href = window.location.origin
-              } catch (error) {
-                console.error('Logout error:', error)
-                // Nuclear option: force reload anyway
-                window.location.href = window.location.origin
-              }
-            }}
-            className="mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors"
+            onClick={handleLogout}
+            className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors"
           >
             Force Logout & Restart
           </button>
@@ -88,13 +271,11 @@ export default function AppDatabase() {
   }
 
   // Show auth screens if not authenticated
-  if (!user) {
+  if (!appState.isAuthenticated) {
     return showLogin ? (
       <>
         <LoginScreen 
-          onLogin={() => {
-            showSuccess('Welcome back!', 'You have successfully logged in.')
-          }}
+          onLogin={() => {}} // Handled by handleLogin
           onSwitchToSignup={() => setShowLogin(false)}
           showAlert={{ showSuccess, showError, showWarning, showInfo }}
         />
@@ -103,9 +284,7 @@ export default function AppDatabase() {
     ) : (
       <>
         <SignupScreen 
-          onSignup={() => {
-            showSuccess('Account Created!', 'Welcome to HenzCorp! Your account has been created successfully.')
-          }}
+          onSignup={() => {}} // Handled by handleSignup
           onSwitchToLogin={() => setShowLogin(true)}
           showAlert={{ showSuccess, showError, showWarning, showInfo }}
         />
@@ -116,6 +295,18 @@ export default function AppDatabase() {
 
   // Render different screens
   const renderScreen = () => {
+    const screenProps = {
+      user: appState.user,
+      profile: appState.profile,
+      wallets: appState.wallets,
+      transactions: appState.transactions,
+      getFiatBalance,
+      getCryptoBalanceUGX,
+      getWalletBalance,
+      refreshData,
+      showAlert: { showSuccess, showError, showWarning, showInfo }
+    }
+
     switch (currentScreen) {
       case 'deposit':
         return (
@@ -193,12 +384,7 @@ export default function AppDatabase() {
           <>
             <AccountScreen 
               onBack={() => setCurrentScreen('home')} 
-              onLogout={async () => {
-                await signOut()
-                showInfo('Logged Out', 'You have been successfully logged out.')
-                setShowLogin(true)
-                setCurrentScreen('home')
-              }}
+              onLogout={handleLogout}
               showAlert={{ showSuccess, showError, showWarning, showInfo }}
             />
             <BottomNavigation currentScreen={currentScreen} onNavigate={setCurrentScreen} />
@@ -280,10 +466,10 @@ export default function AppDatabase() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="text-white text-lg">
-                Welcome back, {profile?.first_name || 'User'}!
+                Welcome back, {appState.profile?.first_name || 'User'}!
               </h2>
               <p className="text-blue-300 text-sm">
-                {profile?.verification_status === 'verified' ? '✓ Verified Account' : 'Pending Verification'}
+                {appState.profile?.verification_status === 'verified' ? '✓ Verified Account' : 'Pending Verification'}
               </p>
             </div>
             <button 
@@ -300,7 +486,7 @@ export default function AppDatabase() {
             <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-sm rounded-2xl p-6 border border-blue-500/30">
               <p className="text-blue-300 text-sm mb-2">Total Balance</p>
               <p className="text-white text-3xl font-bold mb-4">
-                {dataLoading ? (
+                {appState.dataLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                     <span>Loading...</span>
@@ -394,7 +580,7 @@ export default function AppDatabase() {
           {/* Recent Transactions */}
           <div className="mb-8">
             <h3 className="text-white font-semibold text-lg mb-4">Recent Transactions</h3>
-            {dataLoading ? (
+            {appState.dataLoading ? (
               <div className="bg-black/20 backdrop-blur-sm rounded-2xl p-8 border border-blue-800/30 text-center">
                 <div className="relative mx-auto mb-2">
                   <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -402,9 +588,9 @@ export default function AppDatabase() {
                 </div>
                 <p className="text-gray-400 text-sm">Loading transactions...</p>
               </div>
-            ) : transactions.length > 0 ? (
+            ) : appState.transactions.length > 0 ? (
               <div className="space-y-3">
-                {transactions.slice(0, 5).map((transaction) => {
+                {appState.transactions.slice(0, 5).map((transaction) => {
                   const formatted = formatTransactionForDisplay(transaction)
                   return (
                     <div key={formatted.id} className="bg-black/20 backdrop-blur-sm rounded-2xl p-4 border border-blue-800/30">

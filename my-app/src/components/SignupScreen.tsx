@@ -11,9 +11,10 @@ interface SignupScreenProps {
     showWarning: (title: string, message?: string) => void;
     showInfo: (title: string, message?: string) => void;
   };
+  onSignupSubmit?: (email: string, password: string, userData: any) => Promise<void>;
 }
 
-export default function SignupScreen({ onSignup, onSwitchToLogin, showAlert }: SignupScreenProps) {
+export default function SignupScreen({ onSignup, onSwitchToLogin, showAlert, onSignupSubmit }: SignupScreenProps) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -66,16 +67,26 @@ export default function SignupScreen({ onSignup, onSwitchToLogin, showAlert }: S
     setIsLoading(true);
     
     try {
-      await signUp(formData.email.trim(), formData.password, {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: formData.phone,
-        referralCode: formData.referralCode || undefined
-      });
+      if (onSignupSubmit) {
+        await onSignupSubmit(formData.email.trim(), formData.password, {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          referralCode: formData.referralCode || undefined
+        });
+      } else {
+        await signUp(formData.email.trim(), formData.password, {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          referralCode: formData.referralCode || undefined
+        });
+      }
       
       onSignup();
     } catch (error: any) {
-      // Error will be shown by parent component via onSignup callback
+      console.error('Signup error:', error);
+      showAlert?.showError('Signup Failed', error.message || 'Please try again.');
     } finally {
       setIsLoading(false);
     }
