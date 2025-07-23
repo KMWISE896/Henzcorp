@@ -54,7 +54,7 @@ export const signUp = async (
     if (profileCheckError && profileCheckError.code !== 'PGRST116') throw profileCheckError
 
     // Step 4: Insert user profile if not exists
-    if (!existingProfile) {
+    /*if (!existingProfile) {
       const { error: profileError } = await supabase
         .from('user_profiles')
         .insert({
@@ -69,6 +69,7 @@ export const signUp = async (
 
       if (profileError) throw profileError
     }
+    */
 
     // Step 5: Create UGX wallet if not exists
     const { data: existingWallet, error: walletCheckError } = await supabase
