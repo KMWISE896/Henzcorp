@@ -16,6 +16,24 @@ export const useSupabaseData = () => {
       return
     }
 
+    // Add timeout to prevent infinite loading
+    const dataTimeout = setTimeout(() => {
+      console.warn('⚠️ Data loading timeout - using fallback data')
+      setWallets([{
+        id: 'timeout-fallback-ugx',
+        user_id: user.id,
+        currency: 'UGX',
+        balance: 0,
+        available_balance: 0,
+        locked_balance: 0,
+        wallet_address: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      setTransactions([])
+      setLoading(false)
+    }, 8000) // 8 second timeout
+
     try {
       setLoading(true)
       console.log('🔄 Refreshing data for user:', user.id)
@@ -69,6 +87,7 @@ export const useSupabaseData = () => {
         console.log('🔧 Using empty transactions array')
       }
       
+      clearTimeout(dataTimeout)
       setWallets(userWallets)
       setTransactions(userTransactions)
       
@@ -78,6 +97,7 @@ export const useSupabaseData = () => {
       })
     } catch (error) {
       console.error('❌ Critical error refreshing data:', error)
+      clearTimeout(dataTimeout)
       // Set fallback data to prevent infinite loading
       setWallets([{
         id: 'fallback-ugx',

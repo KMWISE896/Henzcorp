@@ -11,6 +11,14 @@ export const useSupabaseAuth = () => {
 
   useEffect(() => {
     let isMounted = true
+    
+    // Add timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (isMounted && loading) {
+        console.warn('⚠️ Auth loading timeout - forcing completion')
+        setLoading(false)
+      }
+    }, 10000) // 10 second timeout
 
     const init = async () => {
       setLoading(true)
@@ -62,6 +70,7 @@ export const useSupabaseAuth = () => {
 
     return () => {
       isMounted = false
+      clearTimeout(loadingTimeout)
       subscription.unsubscribe()
     }
   }, [])

@@ -46,6 +46,20 @@ export default function AppDatabase() {
             <div className="absolute inset-0 w-12 h-12 border-4 border-purple-500 border-r-transparent rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
           <p className="text-white">Loading...</p>
+          <button
+            onClick={async () => {
+              try {
+                await signOut()
+                window.location.reload()
+              } catch (error) {
+                console.error('Logout error:', error)
+                window.location.reload()
+              }
+            }}
+            className="mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors"
+          >
+            Force Logout & Restart
+          </button>
         </div>
       </div>
     )
