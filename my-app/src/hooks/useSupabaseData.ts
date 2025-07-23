@@ -26,15 +26,17 @@ export const useSupabaseData = () => {
       
       try {
         console.log('📊 Fetching user wallets...')
-        userWallets = await Promise.race([
-          getUserWallets(user.id),
-          new Promise<Wallet[]>((_, reject) => 
-            setTimeout(() => reject(new Error('Wallet fetch timeout')), 10000)
-          )
-        ])
+        userWallets = await getUserWallets(user.id)
         console.log('✅ Wallets fetched:', userWallets.length)
       } catch (walletError) {
         console.error('❌ Error fetching wallets:', walletError)
+        
+        // Check if it's a missing table error
+        if (walletError.code === 'PGRST116' || walletError.message?.includes('relation') || walletError.message?.includes('does not exist')) {
+          console.warn('⚠️ Database tables not found - please run the migration script in Supabase Dashboard')
+          console.warn('📋 Go to: Supabase Dashboard → SQL Editor → Run: supabase/migrations/20250723080610_navy_sunset.sql')
+        }
+        
         // Create default UGX wallet if none exists
         userWallets = [{
           id: 'temp-ugx',
@@ -52,15 +54,17 @@ export const useSupabaseData = () => {
       
       try {
         console.log('📋 Fetching user transactions...')
-        userTransactions = await Promise.race([
-          getUserTransactions(user.id, 50),
-          new Promise<Transaction[]>((_, reject) => 
-            setTimeout(() => reject(new Error('Transaction fetch timeout')), 20000)
-          )
-        ])
+        userTransactions = await getUserTransactions(user.id, 50)
         console.log('✅ Transactions fetched:', userTransactions.length)
       } catch (transactionError) {
         console.error('❌ Error fetching transactions:', transactionError)
+        
+        // Check if it's a missing table error
+        if (transactionError.code === 'PGRST116' || transactionError.message?.includes('relation') || transactionError.message?.includes('does not exist')) {
+          console.warn('⚠️ Database tables not found - please run the migration script in Supabase Dashboard')
+          console.warn('📋 Go to: Supabase Dashboard → SQL Editor → Run: supabase/migrations/20250723080610_navy_sunset.sql')
+        }
+        
         userTransactions = []
         console.log('🔧 Using empty transactions array')
       }
