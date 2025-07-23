@@ -20,7 +20,12 @@ export const signUp = async (
   }
 ) => {
   try {
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
+    // Step 1: Sign up user with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    })
+
     if (authError) throw authError
     if (!authData.user) throw new Error('User creation failed')
 
@@ -33,26 +38,40 @@ export const signUp = async (
         .from('user_profiles')
         .select('id')
         .eq('referral_code', userData.referralCode)
-        .maybeSingle()
-      if (referrerError) throw referrerError
+        .single()
+
+      if (referrerError && referrerError.code !== 'PGRST116') throw referrerError
       referrerId = referrer?.id ?? null
     }
 
-    // Step 3: Insert user profile (upsert ensures no conflict)
-    const { error: profileError } = await supabase
+    // Step 3: Check if user profile already exists
+    const { data: existingProfile, error: profileCheckError } = await supabase
       .from('user_profiles')
-      .upsert({
-        id: userId,
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        phone: userData.phone,
-        referral_code: generateReferralCode(),
-        referred_by: referrerId,
-        verification_status: 'verified'
-      }, { onConflict: 'id' })
-    if (profileError) throw profileError
+      .select('id')
+      .eq('id', userId)
+      .single()
 
-    // Step 4: Create UGX wallet if not exists
+    if (profileCheckError && profileCheckError.code !== 'PGRST116') throw profileCheckError
+
+    // Step 4: Insert user profile if not exists
+    /*if (!existingProfile) {
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          phone: userData.phone,
+          referral_code: generateReferralCode(),
+          referred_by: referrerId,
+          verification_status: 'verified'
+        })
+
+      if (profileError) throw profileError
+    }
+    */
+
+    // Step 5: Create UGX wallet if not exists
     const { data: existingWallet, error: walletCheckError } = await supabase
       .from('wallets')
       .select('id')
@@ -60,7 +79,7 @@ export const signUp = async (
       .eq('currency', 'UGX')
       .maybeSingle()
 
-    if (walletCheckError) throw walletCheckError
+    if (walletCheckError && walletCheckError.code !== 'PGRST116') throw walletCheckError
 
     if (!existingWallet) {
       const { error: walletError } = await supabase
@@ -72,41 +91,11 @@ export const signUp = async (
           available_balance: 0,
           locked_balance: 0
         })
+
       if (walletError) throw walletError
     }
 
     return authData
-  } catch (error) {
-    console.error('Signup error:', error)
-    throw error
-  }
-}
-
-// Step 5: Create UGX wallet if not exists
-const { data: existingWallet, error: walletCheckError } = await supabase
-  .from('wallets')
-  .select('id')
-  .eq('user_id', userId)
-  .eq('currency', 'UGX')
- 
-
-if (walletCheckError) throw walletCheckError
-
-if (!existingWallet) {
-  const { error: walletError } = await supabase
-    .from('wallets')
-    .insert({
-      user_id: userId,
-      currency: 'UGX',
-      balance: 0,
-      available_balance: 0,
-      locked_balance: 0
-    })
-
-  if (walletError) throw walletError
-}
-
-return authData
   } catch (error) {
     console.error('Signup error:', error)
     throw error
@@ -144,7 +133,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile> => {
     .from('user_profiles')
     .select('*')
     .eq('id', userId)
-    
+    .maybeSingle()
 
   if (error) throw error
   return data
@@ -156,7 +145,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', userId)
     .select()
-    
+    .maybeSingle()
 
   if (error) throw error
   return data
