@@ -51,7 +51,7 @@ export const signUp = async (
         phone: userData.phone,
         referral_code: generateReferralCode(),
         referred_by: referrerId,
-        verification_status: 'pending'
+        verification_status: 'verified'
       })
 
     if (profileError) throw profileError

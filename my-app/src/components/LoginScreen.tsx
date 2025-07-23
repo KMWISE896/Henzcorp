@@ -53,7 +53,7 @@ export default function LoginScreen({ onLogin, onSwitchToSignup, showAlert }: Lo
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-300 mb-2">HENZCORP</h1>
+          <h1 className="text-3xl font-bold text-blue-300 mb-2">Feezpay</h1>
           <p className="text-gray-400">Welcome back to your crypto wallet</p>
         </div>
 
@@ -143,13 +143,16 @@ export default function LoginScreen({ onLogin, onSwitchToSignup, showAlert }: Lo
         </form>
 
         {/* Divider */}
+        {/*
         <div className="flex items-center my-8">
           <div className="flex-1 border-t border-gray-600"></div>
           <span className="px-4 text-gray-400 text-sm">Or continue with</span>
           <div className="flex-1 border-t border-gray-600"></div>
         </div>
+        */}
 
         {/* Social Login */}
+        {/*
         <div className="grid grid-cols-2 gap-4 mb-8">
           <button
             onClick={() => handleSocialLogin('Google')}
@@ -170,6 +173,7 @@ export default function LoginScreen({ onLogin, onSwitchToSignup, showAlert }: Lo
             <span className="text-white text-sm">Apple</span>
           </button>
         </div>
+        */}
 
         {/* Sign Up Link */}
         <div className="text-center">
