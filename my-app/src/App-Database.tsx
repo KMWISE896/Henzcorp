@@ -69,7 +69,7 @@ export default function AppDatabase() {
       <>
         <SignupScreen 
           onSignup={() => {
-            showSuccess('Account Created!', 'Welcome to HenzCorp! Your account has been created successfully.')
+            showSuccess('Account Created!', 'Welcome to Feezpay! Your account has been created successfully.')
           }}
           onSwitchToLogin={() => setShowLogin(true)}
           showAlert={{ showSuccess, showError, showWarning, showInfo }}
