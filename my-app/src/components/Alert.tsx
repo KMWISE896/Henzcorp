@@ -123,13 +123,6 @@ export default function Alert({ id, type, title, message, duration = 2500, onClo
           />
         </div>
       </div>
-      
-      <style jsx>{`
-        @keyframes shrink {
-          from { width: 100%; }
-          to { width: 0%; }
-        }
-      `}</style>
     </div>
   );
 }
