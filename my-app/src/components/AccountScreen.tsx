@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, User, Mail, Phone, Shield, Bell, HelpCircle, LogOut, ChevronRight, Edit, Camera, Eye, EyeOff } from 'lucide-react';
-import { signOut, updateUserProfile } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import { useAppData } from '../contexts/AppContext';
+import { signOut, updateUserProfile } from '../lib/database';
+import { useSupabase } from '../contexts/SupabaseContext';
 
 interface AccountScreenProps {
   onBack: () => void;
@@ -16,8 +15,7 @@ interface AccountScreenProps {
 }
 
 export default function AccountScreen({ onBack, onLogout, showAlert }: AccountScreenProps) {
-  const { user, profile, refreshProfile } = useAuth();
-  const { getFiatBalance, getCryptoBalanceUGX, transactions } = useAppData();
+  const { user, profile, refreshProfile, getFiatBalance, getCryptoBalanceUGX, transactions } = useSupabase();
   const [showBalance, setShowBalance] = useState(true);
   const [notifications, setNotifications] = useState(true);
   const [twoFactor, setTwoFactor] = useState(false);
@@ -250,11 +248,9 @@ export default function AccountScreen({ onBack, onLogout, showAlert }: AccountSc
             <button 
               onClick={() => {
                 try {
-                  const { storageUtils } = require('../lib/supabase')
-                  const info = storageUtils.getStorageInfo()
-                  showAlert?.showInfo('Storage Info', `Total data: ${info.totalSize}. Auto-cleanup after 24 hours.`)
+                  showAlert?.showInfo('Database Mode', 'Using Supabase PostgreSQL database for all data storage.')
                 } catch (error) {
-                  showAlert?.showError('Error', 'Failed to get storage info')
+                  showAlert?.showError('Error', 'Failed to get database info')
                 }
               }}
               className="w-full bg-black/20 backdrop-blur-sm rounded-2xl p-4 border border-blue-800/30 hover:bg-black/30 transition-colors"
@@ -265,8 +261,8 @@ export default function AccountScreen({ onBack, onLogout, showAlert }: AccountSc
                     <HelpCircle className="w-5 h-5 text-blue-400" />
                   </div>
                   <div className="text-left">
-                    <p className="text-white font-medium">Storage Info</p>
-                    <p className="text-gray-400 text-sm">View local data usage</p>
+                    <p className="text-white font-medium">Database Info</p>
+                    <p className="text-gray-400 text-sm">View database connection</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -275,28 +271,7 @@ export default function AccountScreen({ onBack, onLogout, showAlert }: AccountSc
             
             <button 
               onClick={() => {
-                try {
-                  // Import the storage utilities
-                  import('../lib/supabase').then(({ storageUtils }) => {
-                    storageUtils.clearAllStoredData()
-                    showAlert?.showSuccess('Data Cleared', 'All test data has been cleared. Please refresh the page.')
-                    setTimeout(() => window.location.reload(), 2000)
-                  }).catch((error) => {
-                    console.error('Failed to import storage utils:', error)
-                    // Fallback: clear localStorage directly
-                    const keys = Object.keys(localStorage).filter(key => key.startsWith('henzcorp_'))
-                    keys.forEach(key => localStorage.removeItem(key))
-                    showAlert?.showSuccess('Data Cleared', 'All test data has been cleared. Please refresh the page.')
-                    setTimeout(() => window.location.reload(), 2000)
-                  })
-                } catch (error) {
-                  console.error('Failed to clear data:', error)
-                  // Fallback: clear localStorage directly
-                  const keys = Object.keys(localStorage).filter(key => key.startsWith('henzcorp_'))
-                  keys.forEach(key => localStorage.removeItem(key))
-                  showAlert?.showSuccess('Data Cleared', 'All test data has been cleared. Please refresh the page.')
-                  setTimeout(() => window.location.reload(), 2000)
-                }
+                showAlert?.showInfo('Database Mode', 'All data is stored in Supabase PostgreSQL. No local data to clear.')
               }}
               className="w-full bg-red-600/20 backdrop-blur-sm rounded-2xl p-4 border border-red-500/30 hover:bg-red-600/30 transition-colors"
             >
@@ -306,8 +281,8 @@ export default function AccountScreen({ onBack, onLogout, showAlert }: AccountSc
                     <HelpCircle className="w-5 h-5 text-red-400" />
                   </div>
                   <div className="text-left">
-                    <p className="text-white font-medium">Clear Test Data</p>
-                    <p className="text-gray-400 text-sm">Reset all local storage</p>
+                    <p className="text-white font-medium">Database Status</p>
+                    <p className="text-gray-400 text-sm">Connected to Supabase</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400" />
