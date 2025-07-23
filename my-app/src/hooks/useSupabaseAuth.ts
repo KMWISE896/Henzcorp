@@ -9,44 +9,62 @@ export const useSupabaseAuth = () => {
   const [loading, setLoading] = useState(true)
   const [session, setSession] = useState<Session | null>(null)
 
-useEffect(() => {
-  const init = async () => {
-    setLoading(true)
+  useEffect(() => {
+    let isMounted = true
 
-    const {
-      data: { session: initialSession },
-    } = await supabase.auth.getSession()
+    const init = async () => {
+      setLoading(true)
 
-    setSession(initialSession)
-    setUser(initialSession?.user ?? null)
+      try {
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession()
 
-    if (initialSession?.user) {
-      await loadUserProfile(initialSession.user.id)
-    }
+        if (error) {
+          console.error('Error getting session:', error)
+        }
 
-    setLoading(false)
-  }
+        if (!isMounted) return
 
-  init()
+        setSession(initialSession)
+        const currentUser = initialSession?.user ?? null
+        setUser(currentUser)
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-
-      if (session?.user) {
-        await loadUserProfile(session.user.id)
-      } else {
-        setProfile(null)
+        if (currentUser) {
+          await loadUserProfile(currentUser.id)
+        } else {
+          setProfile(null)
+        }
+      } catch (err) {
+        console.error('Error in init:', err)
+      } finally {
+        if (isMounted) setLoading(false)
       }
-
-      setLoading(false)
     }
-  )
 
-  return () => subscription.unsubscribe()
-}, [])
+    init()
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        if (!isMounted) return
+
+        setSession(newSession)
+        const newUser = newSession?.user ?? null
+        setUser(newUser)
+
+        if (newUser) {
+          await loadUserProfile(newUser.id)
+        } else {
+          setProfile(null)
+        }
+
+        setLoading(false)
+      }
+    )
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
 
   const loadUserProfile = async (userId: string) => {
     try {
@@ -54,7 +72,6 @@ useEffect(() => {
       setProfile(userProfile)
     } catch (error) {
       console.error('Error loading user profile:', error)
-      // If profile doesn't exist, user might need to complete signup
       setProfile(null)
     }
   }
