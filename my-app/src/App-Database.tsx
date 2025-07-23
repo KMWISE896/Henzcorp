@@ -275,7 +275,8 @@ export default function AppDatabase() {
     return showLogin ? (
       <>
         <LoginScreen 
-          onLogin={() => {}} // Handled by handleLogin
+          onLogin={() => {}}
+          onLoginSubmit={handleLogin}
           onSwitchToSignup={() => setShowLogin(false)}
           showAlert={{ showSuccess, showError, showWarning, showInfo }}
         />
@@ -284,7 +285,8 @@ export default function AppDatabase() {
     ) : (
       <>
         <SignupScreen 
-          onSignup={() => {}} // Handled by handleSignup
+          onSignup={() => {}}
+          onSignupSubmit={handleSignup}
           onSwitchToLogin={() => setShowLogin(true)}
           showAlert={{ showSuccess, showError, showWarning, showInfo }}
         />
