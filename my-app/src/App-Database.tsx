@@ -487,7 +487,7 @@ export default function AppDatabase() {
             {/* Total Balance */}
             <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-sm rounded-2xl p-6 border border-blue-500/30">
               <p className="text-blue-300 text-sm mb-2">Total Balance</p>
-              <p className="text-white text-3xl font-bold mb-4">
+              <div className="text-white text-3xl font-bold mb-4">
                 {appState.dataLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -498,7 +498,7 @@ export default function AppDatabase() {
                     UGX {totalBalance.toLocaleString()}
                   </span>
                 )}
-              </p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-400 text-xs">Fiat Balance</p>
