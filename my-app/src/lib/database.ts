@@ -63,13 +63,8 @@ export const signIn = async (email: string, password: string) => {
 }
 
 export const signOut = async () => {
-  console.log('🚪 Signing out from Supabase...')
   const { error } = await supabase.auth.signOut()
-  if (error) {
-    console.error('❌ Supabase signOut error:', error)
-    throw error
-  }
-  console.log('✅ Successfully signed out from Supabase')
+  if (error) throw error
 }
 
 export const getCurrentSession = async () => {
@@ -79,8 +74,6 @@ export const getCurrentSession = async () => {
 
 // User Profile
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
-  console.log('🔍 Fetching profile for user:', userId)
-  
   const { data, error } = await supabase
     .from('user_profiles')
     .select('*')
@@ -93,11 +86,10 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
   }
 
   if (!data) {
-    console.warn('⚠️ No profile found for user ID:', userId, '- User may need to complete signup process')
+    console.warn('⚠️ No profile found for user ID:', userId)
     return null
   }
 
-  console.log('✅ Profile found:', data.first_name, data.last_name)
   return data
 }
 
@@ -115,22 +107,13 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
 
 // Wallets
 export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
-  console.log('💰 Fetching wallets for user:', userId)
-  
   const { data, error } = await supabase
     .from('wallets')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: true })
-  console.log('🧾 Wallet data:', data)
-console.error('⚠️ Wallet error:', error)
 
-  if (error) {
-    console.error('❌ Error fetching wallets:', error)
-    throw error
-  }
-  
-  console.log('✅ Wallets fetched:', data?.length || 0)
+  if (error) throw error
   return data || []
 }
 
@@ -176,8 +159,6 @@ export const createTransaction = async (transactionData: Omit<Transaction, 'id' 
 }
 
 export const getUserTransactions = async (userId: string, limit = 10): Promise<Transaction[]> => {
-  console.log('📋 Fetching transactions for user:', userId, 'limit:', limit)
-  
   const { data, error } = await supabase
     .from('transactions')
     .select('*')
@@ -185,12 +166,7 @@ export const getUserTransactions = async (userId: string, limit = 10): Promise<T
     .order('created_at', { ascending: false })
     .limit(limit)
 
-  if (error) {
-    console.error('❌ Error fetching transactions:', error)
-    throw error
-  }
-  
-  console.log('✅ Transactions fetched:', data?.length || 0)
+  if (error) throw error
   return data || []
 }
 
@@ -344,7 +320,7 @@ export const detectNetwork = (phone: string): 'mtn' | 'airtel' | 'utl' => {
   return 'mtn'
 }
 
-export const generateReferralCode = (): string => {
+const generateReferralCode = (): string => {
   const year = new Date().getFullYear()
   const randomString = Math.random().toString(36).substring(2, 8).toUpperCase()
   return `HENZ${year}${randomString}`
