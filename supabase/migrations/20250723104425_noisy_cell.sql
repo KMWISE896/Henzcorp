@@ -181,7 +181,7 @@ DECLARE
   referrer_profile user_profiles%ROWTYPE;
 BEGIN
   -- Create user profile
-  INSERT INTO user_profiles (
+  INSERT INTO public.user_profiles (
     id,
     first_name,
     last_name,
