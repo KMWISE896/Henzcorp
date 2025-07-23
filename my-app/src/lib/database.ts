@@ -1,14 +1,78 @@
 import { supabase } from './supabase-client'
 import type { Database } from './supabase-client'
 
-// === Type Aliases ===
+// Type aliases
 export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
 export type Wallet = Database['public']['Tables']['wallets']['Row']
 export type Transaction = Database['public']['Tables']['transactions']['Row']
 export type CryptoAsset = Database['public']['Tables']['crypto_assets']['Row']
 export type Referral = Database['public']['Tables']['referrals']['Row']
 
-// === User Profile ===
+// Auth functions
+export const signUp = async (
+  email: string,
+  password: string,
+  userData: {
+    firstName: string
+    lastName: string
+    phone: string
+    referralCode?: string
+  }
+) => {
+  try {
+    // Format phone number before passing to auth
+    const formattedPhone = formatPhoneNumber(userData.phone)
+
+    // Pass all user data through auth metadata - the backend trigger will handle profile/wallet creation
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          phone: formattedPhone,
+          referral_code: userData.referralCode || null
+        }
+      }
+    })
+
+    if (authError) throw authError
+    if (!authData.user) throw new Error('User creation failed')
+
+    return authData
+  } catch (error) {
+    console.error('Signup error:', error)
+    throw error
+  }
+}
+
+export const signIn = async (email: string, password: string) => {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Signin error:', error)
+    throw error
+  }
+}
+
+export const signOut = async () => {
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}
+
+export const getCurrentSession = async () => {
+  const { data: { session } } = await supabase.auth.getSession()
+  return session
+}
+
+// User Profile
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   const { data, error } = await supabase
     .from('user_profiles')
@@ -21,13 +85,15 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
     throw error
   }
 
-  return data ?? null
+  if (!data) {
+    console.warn('⚠️ No profile found for user ID:', userId)
+    return null
+  }
+
+  return data
 }
 
-export const updateUserProfile = async (
-  userId: string,
-  updates: Partial<UserProfile>
-): Promise<UserProfile> => {
+export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>) => {
   const { data, error } = await supabase
     .from('user_profiles')
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -39,7 +105,7 @@ export const updateUserProfile = async (
   return data
 }
 
-// === Wallets ===
+// Wallets
 export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
   const { data, error } = await supabase
     .from('wallets')
@@ -48,20 +114,18 @@ export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
     .order('created_at', { ascending: true })
 
   if (error) throw error
-  return data ?? []
+  return data || []
 }
 
-export const getWalletBalance = async (
-  userId: string,
-  currency: string
-): Promise<number> => {
-  const { data, error } = await supabase.rpc('get_user_balance', {
-    user_uuid: userId,
-    wallet_currency: currency
-  })
+export const getWalletBalance = async (userId: string, currency: string): Promise<number> => {
+  const { data, error } = await supabase
+    .rpc('get_user_balance', {
+      user_uuid: userId,
+      wallet_currency: currency
+    })
 
   if (error) throw error
-  return data ?? 0
+  return data || 0
 }
 
 export const updateWalletBalance = async (
@@ -70,21 +134,20 @@ export const updateWalletBalance = async (
   amount: number,
   operation: 'add' | 'subtract' = 'add'
 ) => {
-  const { data, error } = await supabase.rpc('update_wallet_balance', {
-    user_uuid: userId,
-    wallet_currency: currency,
-    amount_change: amount,
-    operation_type: operation
-  })
+  const { data, error } = await supabase
+    .rpc('update_wallet_balance', {
+      user_uuid: userId,
+      wallet_currency: currency,
+      amount_change: amount,
+      operation_type: operation
+    })
 
   if (error) throw error
   return data
 }
 
-// === Transactions ===
-export const createTransaction = async (
-  transactionData: Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'reference_id'>
-): Promise<Transaction> => {
+// Transactions
+export const createTransaction = async (transactionData: Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'reference_id'>): Promise<Transaction> => {
   const { data, error } = await supabase
     .from('transactions')
     .insert(transactionData)
@@ -95,10 +158,7 @@ export const createTransaction = async (
   return data
 }
 
-export const getUserTransactions = async (
-  userId: string,
-  limit = 10
-): Promise<Transaction[]> => {
+export const getUserTransactions = async (userId: string, limit = 10): Promise<Transaction[]> => {
   const { data, error } = await supabase
     .from('transactions')
     .select('*')
@@ -107,13 +167,10 @@ export const getUserTransactions = async (
     .limit(limit)
 
   if (error) throw error
-  return data ?? []
+  return data || []
 }
 
-export const updateTransactionStatus = async (
-  transactionId: string,
-  status: Transaction['status']
-): Promise<Transaction> => {
+export const updateTransactionStatus = async (transactionId: string, status: Transaction['status']) => {
   const { data, error } = await supabase
     .from('transactions')
     .update({
@@ -128,7 +185,7 @@ export const updateTransactionStatus = async (
   return data
 }
 
-// === Crypto Assets ===
+// Crypto
 export const getCryptoAssets = async (): Promise<CryptoAsset[]> => {
   const { data, error } = await supabase
     .from('crypto_assets')
@@ -137,10 +194,10 @@ export const getCryptoAssets = async (): Promise<CryptoAsset[]> => {
     .order('symbol', { ascending: true })
 
   if (error) throw error
-  return data ?? []
+  return data || []
 }
 
-// === Deposit / Withdrawal ===
+// Deposit / Withdrawal
 export const createDeposit = async (depositData: any) => {
   const { data, error } = await supabase
     .from('deposits')
@@ -163,7 +220,7 @@ export const createWithdrawal = async (withdrawalData: any) => {
   return data
 }
 
-// === Airtime Purchases ===
+// Airtime
 export const createAirtimePurchase = async (airtimeData: any) => {
   const { data, error } = await supabase
     .from('airtime_purchases')
@@ -175,7 +232,7 @@ export const createAirtimePurchase = async (airtimeData: any) => {
   return data
 }
 
-// === Crypto Trading ===
+// Crypto Trading
 export const createCryptoTrade = async (tradeData: any) => {
   const { data, error } = await supabase
     .from('crypto_trades')
@@ -198,7 +255,7 @@ export const createCryptoTransfer = async (transferData: any) => {
   return data
 }
 
-// === Referrals ===
+// Referrals
 export const getReferralStats = async (userId: string) => {
   const { data, error } = await supabase
     .rpc('get_referral_stats', {
@@ -206,7 +263,7 @@ export const getReferralStats = async (userId: string) => {
     })
 
   if (error) throw error
-  return data ?? []
+  return data || []
 }
 
 export const getUserReferrals = async (userId: string) => {
@@ -224,5 +281,47 @@ export const getUserReferrals = async (userId: string) => {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data ?? []
+  return data || []
+}
+
+// Utils
+export const formatPhoneNumber = (phone: string): string => {
+  const cleaned = phone.replace(/\D/g, '')
+  if (cleaned.startsWith('256')) {
+    return `+${cleaned}`
+  }
+  if (cleaned.startsWith('0')) {
+    return `+256${cleaned.substring(1)}`
+  }
+  if (cleaned.length === 9) {
+    return `+256${cleaned}`
+  }
+  return `+${cleaned}`
+}
+
+export const detectNetwork = (phone: string): 'mtn' | 'airtel' | 'utl' => {
+  const cleaned = phone.replace(/\D/g, '')
+  const lastDigits = cleaned.slice(-9)
+
+  if (lastDigits.startsWith('77') || lastDigits.startsWith('78') ||
+      lastDigits.startsWith('76') || lastDigits.startsWith('39')) {
+    return 'mtn'
+  }
+
+  if (lastDigits.startsWith('75') || lastDigits.startsWith('70') ||
+      lastDigits.startsWith('74') || lastDigits.startsWith('20')) {
+    return 'airtel'
+  }
+
+  if (lastDigits.startsWith('71') || lastDigits.startsWith('31')) {
+    return 'utl'
+  }
+
+  return 'mtn'
+}
+
+export const generateReferralCode = (): string => {
+  const year = new Date().getFullYear()
+  const randomString = Math.random().toString(36).substring(2, 8).toUpperCase()
+  return `HENZ${year}${randomString}`
 }
