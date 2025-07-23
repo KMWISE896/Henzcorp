@@ -72,30 +72,31 @@ export const signUp = async (
     */
 
     // Step 5: Create UGX wallet if not exists
-    const { data: existingWallet, error: walletCheckError } = await supabase
-      .from('wallets')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('currency', 'UGX')
-      .maybeSingle()
+// Step 5: Create UGX wallet if not exists
+const { data: existingWallet, error: walletCheckError } = await supabase
+  .from('wallets')
+  .select('id')
+  .eq('user_id', userId)
+  .eq('currency', 'UGX')
+  .maybeSingle()
 
-    if (walletCheckError && walletCheckError.code !== 'PGRST116') throw walletCheckError
+if (walletCheckError) throw walletCheckError
 
-    if (!existingWallet) {
-      const { error: walletError } = await supabase
-        .from('wallets')
-        .insert({
-          user_id: userId,
-          currency: 'UGX',
-          balance: 0,
-          available_balance: 0,
-          locked_balance: 0
-        })
+if (!existingWallet) {
+  const { error: walletError } = await supabase
+    .from('wallets')
+    .insert({
+      user_id: userId,
+      currency: 'UGX',
+      balance: 0,
+      available_balance: 0,
+      locked_balance: 0
+    })
 
-      if (walletError) throw walletError
-    }
+  if (walletError) throw walletError
+}
 
-    return authData
+return authData
   } catch (error) {
     console.error('Signup error:', error)
     throw error
@@ -145,7 +146,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', userId)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) throw error
   return data
