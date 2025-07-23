@@ -7,57 +7,66 @@ export const useSupabaseData = () => {
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const refreshData = async () => {
     if (!user) {
+      console.log('🚫 No user - clearing data')
       setWallets([])
       setTransactions([])
       setLoading(false)
+      setError(null)
       return
     }
 
-    // Add timeout to prevent infinite loading
-    const dataTimeout = setTimeout(() => {
-      console.warn('⚠️ Data loading timeout - using fallback data')
-      setWallets([{
-        id: 'timeout-fallback-ugx',
-        user_id: user.id,
-        currency: 'UGX',
-        balance: 0,
-        available_balance: 0,
-        locked_balance: 0,
-        wallet_address: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      setTransactions([])
-      setLoading(false)
-    }, 8000) // 8 second timeout
-
     try {
       setLoading(true)
+      setError(null)
       console.log('🔄 Refreshing data for user:', user.id)
       
-      // Try to get user wallets with timeout and error handling
+      // Fetch user wallets
       let userWallets: Wallet[] = []
       let userTransactions: Transaction[] = []
       
       try {
         console.log('📊 Fetching user wallets...')
         userWallets = await getUserWallets(user.id)
-        console.log('✅ Wallets fetched:', userWallets.length)
+        console.log('✅ Wallets fetched successfully:', userWallets.length)
+        
+        // If no wallets exist, create a default UGX wallet entry for display
+        if (userWallets.length === 0) {
+          console.log('📝 No wallets found - user may need to make first transaction')
+          userWallets = [{
+            id: 'default-ugx',
+            user_id: user.id,
+            currency: 'UGX',
+            balance: 0,
+            available_balance: 0,
+            locked_balance: 0,
+            wallet_address: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }]
+        }
       } catch (walletError) {
         console.error('❌ Error fetching wallets:', walletError)
         
-        // Check if it's a missing table error
-        if (walletError.code === 'PGRST116' || walletError.message?.includes('relation') || walletError.message?.includes('does not exist')) {
-          console.warn('⚠️ Database tables not found - please run the migration script in Supabase Dashboard')
-          console.warn('📋 Go to: Supabase Dashboard → SQL Editor → Run: supabase/migrations/20250723080610_navy_sunset.sql')
+        // Check for specific error types
+        if (walletError.code === 'PGRST116' || 
+            walletError.message?.includes('relation') || 
+            walletError.message?.includes('does not exist') ||
+            walletError.message?.includes('permission denied')) {
+          
+          const errorMsg = 'Database tables not found or permission denied. Please check your Supabase setup.'
+          console.warn('⚠️', errorMsg)
+          setError(errorMsg)
+        } else {
+          setError(`Wallet fetch error: ${walletError.message}`)
         }
         
-        // Create default UGX wallet if none exists
+        // Provide fallback wallet
         userWallets = [{
-          id: 'temp-ugx',
+          id: 'fallback-ugx',
           user_id: user.id,
           currency: 'UGX',
           balance: 0,
@@ -67,27 +76,28 @@ export const useSupabaseData = () => {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }]
-        console.log('🔧 Using fallback UGX wallet')
       }
       
       try {
         console.log('📋 Fetching user transactions...')
         userTransactions = await getUserTransactions(user.id, 50)
-        console.log('✅ Transactions fetched:', userTransactions.length)
+        console.log('✅ Transactions fetched successfully:', userTransactions.length)
       } catch (transactionError) {
         console.error('❌ Error fetching transactions:', transactionError)
         
-        // Check if it's a missing table error
-        if (transactionError.code === 'PGRST116' || transactionError.message?.includes('relation') || transactionError.message?.includes('does not exist')) {
-          console.warn('⚠️ Database tables not found - please run the migration script in Supabase Dashboard')
-          console.warn('📋 Go to: Supabase Dashboard → SQL Editor → Run: supabase/migrations/20250723080610_navy_sunset.sql')
+        if (transactionError.code === 'PGRST116' || 
+            transactionError.message?.includes('relation') || 
+            transactionError.message?.includes('does not exist') ||
+            transactionError.message?.includes('permission denied')) {
+          
+          if (!error) { // Only set if we don't already have an error
+            setError('Database tables not found or permission denied. Please check your Supabase setup.')
+          }
         }
         
         userTransactions = []
-        console.log('🔧 Using empty transactions array')
       }
       
-      clearTimeout(dataTimeout)
       setWallets(userWallets)
       setTransactions(userTransactions)
       
@@ -97,10 +107,11 @@ export const useSupabaseData = () => {
       })
     } catch (error) {
       console.error('❌ Critical error refreshing data:', error)
-      clearTimeout(dataTimeout)
-      // Set fallback data to prevent infinite loading
+      setError(`Critical error: ${error.message}`)
+      
+      // Set fallback data
       setWallets([{
-        id: 'fallback-ugx',
+        id: 'error-fallback-ugx',
         user_id: user.id,
         currency: 'UGX',
         balance: 0,
@@ -143,6 +154,7 @@ export const useSupabaseData = () => {
   }
 
   useEffect(() => {
+    console.log('🔄 useSupabaseData effect triggered, user:', user ? 'exists' : 'none')
     refreshData()
   }, [user])
 
@@ -150,6 +162,7 @@ export const useSupabaseData = () => {
     wallets,
     transactions,
     loading,
+    error,
     refreshData,
     getFiatBalance,
     getCryptoBalanceUGX,

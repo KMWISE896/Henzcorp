@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Home, ArrowUpDown, Plus, Minus, Smartphone, Users, User } from 'lucide-react'
+import { supabase } from './lib/supabase-client'
 import { useAlert } from './hooks/useAlert'
 
 // Import screens
@@ -187,14 +188,20 @@ export default function AppDatabase() {
     console.log('🚪 Logging out...')
     
     try {
-      // Sign out from database
-      await dbSignOut()
-      console.log('✅ Database logout successful')
+      // Direct Supabase logout
+      console.log('🔐 Signing out from Supabase...')
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('❌ Supabase logout error:', error)
+      } else {
+        console.log('✅ Supabase logout successful')
+      }
     } catch (error) {
-      console.warn('⚠️ Database logout failed:', error)
+      console.warn('⚠️ Logout error:', error)
     }
     
-    // Clear all local state
+    // Force clear all state regardless of logout success
+    console.log('🧹 Clearing all app state...')
     setAppState({
       user: null,
       profile: null,
@@ -205,16 +212,17 @@ export default function AppDatabase() {
       dataLoading: false
     })
     
-    // Clear storage
+    // Clear all storage
+    console.log('🗑️ Clearing storage...')
     localStorage.clear()
     sessionStorage.clear()
     
     // Reset to login screen
+    console.log('🔄 Resetting to login screen...')
     setShowLogin(true)
     setCurrentScreen('home')
     
     console.log('✅ Logout completed')
-    showInfo('Logged Out', 'You have been successfully logged out.')
   }
 
   const refreshData = async () => {
@@ -259,11 +267,12 @@ export default function AppDatabase() {
             <div className="absolute inset-0 w-12 h-12 border-4 border-purple-500 border-r-transparent rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
           <p className="text-white mb-4">Loading...</p>
+          <p className="text-gray-400 text-sm mb-6">Connecting to Supabase...</p>
           <button
             onClick={handleLogout}
-            className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors"
+            className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-colors"
           >
-            Force Logout & Restart
+            Skip to Login
           </button>
         </div>
       </div>

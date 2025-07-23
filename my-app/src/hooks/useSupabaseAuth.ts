@@ -10,83 +10,91 @@ export const useSupabaseAuth = () => {
   const [session, setSession] = useState<Session | null>(null)
 
   useEffect(() => {
-    let isMounted = true
-    
-    // Add timeout to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      if (isMounted && loading) {
-        console.warn('⚠️ Auth loading timeout - forcing completion')
-        setLoading(false)
-      }
-    }, 10000) // 10 second timeout
+    let mounted = true
 
     const init = async () => {
-      setLoading(true)
-
       try {
+        console.log('🔐 Initializing Supabase auth...')
         const { data: { session: initialSession }, error } = await supabase.auth.getSession()
 
         if (error) {
-          console.error('Error getting session:', error)
+          console.error('❌ Error getting session:', error)
+          if (mounted) {
+            setLoading(false)
+          }
+          return
         }
 
-        if (!isMounted) return
+        if (!mounted) return
 
+        console.log('📱 Initial session:', initialSession ? 'Found' : 'None')
         setSession(initialSession)
         const currentUser = initialSession?.user ?? null
         setUser(currentUser)
 
         if (currentUser) {
+          console.log('👤 Loading profile for user:', currentUser.id)
           await loadUserProfile(currentUser.id)
         } else {
+          console.log('🚫 No user found')
           setProfile(null)
         }
       } catch (err) {
-        console.error('Error in init:', err)
+        console.error('❌ Error in auth init:', err)
       } finally {
-        if (isMounted) setLoading(false)
+        if (mounted) {
+          console.log('✅ Auth initialization complete')
+          setLoading(false)
+        }
       }
     }
 
     init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        if (!isMounted) return
+      async (event, newSession) => {
+        if (!mounted) return
 
+        console.log('🔄 Auth state changed:', event, newSession ? 'Session exists' : 'No session')
         setSession(newSession)
         const newUser = newSession?.user ?? null
         setUser(newUser)
 
         if (newUser) {
+          console.log('👤 Auth state change - loading profile for:', newUser.id)
           await loadUserProfile(newUser.id)
         } else {
+          console.log('🚫 Auth state change - no user')
           setProfile(null)
         }
 
-        setLoading(false)
+        if (mounted) {
+          setLoading(false)
+        }
       }
     )
 
     return () => {
-      isMounted = false
-      clearTimeout(loadingTimeout)
+      mounted = false
       subscription.unsubscribe()
     }
   }, [])
 
   const loadUserProfile = async (userId: string) => {
     try {
+      console.log('📊 Fetching user profile...')
       const userProfile = await getUserProfile(userId)
+      console.log('✅ Profile loaded:', userProfile ? 'Success' : 'Not found')
       setProfile(userProfile)
     } catch (error) {
-      console.error('Error loading user profile:', error)
+      console.error('❌ Error loading user profile:', error)
       setProfile(null)
     }
   }
 
   const refreshProfile = async () => {
     if (user) {
+      console.log('🔄 Refreshing profile...')
       await loadUserProfile(user.id)
     }
   }

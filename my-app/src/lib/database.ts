@@ -79,6 +79,8 @@ export const getCurrentSession = async () => {
 
 // User Profile
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  console.log('🔍 Fetching profile for user:', userId)
+  
   const { data, error } = await supabase
     .from('user_profiles')
     .select('*')
@@ -87,18 +89,15 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
 
   if (error) {
     console.error('❌ Error fetching user profile:', error)
-    if (error.code === 'PGRST116' || error.message.includes('relation') || error.message.includes('does not exist')) {
-      console.warn('⚠️ user_profiles table may not exist - this suggests database migration is needed')
-      return null
-    }
     throw error
   }
 
   if (!data) {
-    console.warn('⚠️ No profile found for user ID:', userId)
+    console.warn('⚠️ No profile found for user ID:', userId, '- User may need to complete signup process')
     return null
   }
 
+  console.log('✅ Profile found:', data.first_name, data.last_name)
   return data
 }
 
@@ -116,6 +115,8 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
 
 // Wallets
 export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
+  console.log('💰 Fetching wallets for user:', userId)
+  
   const { data, error } = await supabase
     .from('wallets')
     .select('*')
@@ -124,12 +125,10 @@ export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
 
   if (error) {
     console.error('❌ Error fetching wallets:', error)
-    if (error.code === 'PGRST116' || error.message.includes('relation') || error.message.includes('does not exist')) {
-      console.warn('⚠️ wallets table may not exist - this suggests database migration is needed')
-      return []
-    }
     throw error
   }
+  
+  console.log('✅ Wallets fetched:', data?.length || 0)
   return data || []
 }
 
@@ -175,6 +174,8 @@ export const createTransaction = async (transactionData: Omit<Transaction, 'id' 
 }
 
 export const getUserTransactions = async (userId: string, limit = 10): Promise<Transaction[]> => {
+  console.log('📋 Fetching transactions for user:', userId, 'limit:', limit)
+  
   const { data, error } = await supabase
     .from('transactions')
     .select('*')
@@ -184,12 +185,10 @@ export const getUserTransactions = async (userId: string, limit = 10): Promise<T
 
   if (error) {
     console.error('❌ Error fetching transactions:', error)
-    if (error.code === 'PGRST116' || error.message.includes('relation') || error.message.includes('does not exist')) {
-      console.warn('⚠️ transactions table may not exist - this suggests database migration is needed')
-      return []
-    }
     throw error
   }
+  
+  console.log('✅ Transactions fetched:', data?.length || 0)
   return data || []
 }
 
