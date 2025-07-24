@@ -12,7 +12,6 @@ export type Referral = Database['public']['Tables']['referrals']['Row']
 
 // Authentication functions
 
-
 export const signUp = async (
   email: string,
   password: string,
@@ -24,10 +23,10 @@ export const signUp = async (
   }
 ) => {
   try {
-    // Step 1: Create user
+    // Step 1: Sign up user (this may not sign them in automatically)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
-      password
+      password,
     })
 
     if (authError) throw authError
@@ -35,27 +34,31 @@ export const signUp = async (
 
     const userId = authData.user.id
 
-    // Step 2: Get session
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError) throw sessionError
+    // Step 2: Immediately sign in to get session & access token
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-    const accessToken = sessionData.session?.access_token
-    if (!accessToken) throw new Error('Access token missing after signup')
+    if (signInError) throw signInError
+    if (!signInData.session?.access_token) throw new Error('Access token missing after sign-in')
 
-    // Step 3: Create new client with token
+    const accessToken = signInData.session.access_token
+
+    // Step 3: Create new supabase client with access token (for RLS)
     const authedClient = createClient(
       import.meta.env.VITE_SUPABASE_URL,
       import.meta.env.VITE_SUPABASE_ANON_KEY,
       {
         global: {
           headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        }
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
       }
     )
 
-    // Step 4: Lookup referral
+    // Step 4: Find referrer if provided
     let referrerId: string | null = null
     if (userData.referralCode) {
       const { data: referrer } = await authedClient
@@ -63,11 +66,10 @@ export const signUp = async (
         .select('id')
         .eq('referral_code', userData.referralCode)
         .single()
-
       referrerId = referrer?.id ?? null
     }
 
-    // Step 5: Create user profile (must match auth.uid() for RLS)
+    // Step 5: Insert or update user profile with RLS enforced
     const { error: profileError } = await authedClient
       .from('user_profiles')
       .upsert({
@@ -77,12 +79,12 @@ export const signUp = async (
         phone: userData.phone,
         referral_code: generateReferralCode(),
         referred_by: referrerId,
-        verification_status: 'verified'
+        verification_status: 'verified',
       })
 
     if (profileError) throw profileError
 
-    // Step 6: Create wallet
+    // Step 6: Create initial wallet
     const { error: walletError } = await authedClient
       .from('wallets')
       .insert({
@@ -90,41 +92,17 @@ export const signUp = async (
         currency: 'UGX',
         balance: 0,
         available_balance: 0,
-        locked_balance: 0
+        locked_balance: 0,
       })
 
     if (walletError) throw walletError
 
-    return authData
+    // Return full auth data, including session
+    return signInData
   } catch (error) {
     console.error('Signup error:', error)
     throw error
   }
-}
-
-
-// User Profile functions
-export const getUserProfile = async (userId: string): Promise<UserProfile> => {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
-
-  if (error) throw error
-  return data
-}
-
-export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>) => {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', userId)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
 }
 
 export const signIn = async (email: string, password: string) => {
