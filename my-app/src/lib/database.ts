@@ -347,10 +347,3 @@ export const detectNetwork = (phone: string): 'mtn' | 'airtel' | 'utl' => {
   
   return 'mtn'
 }
-
-// Helper function to generate referral codes
-const generateReferralCode = (): string => {
-  const year = new Date().getFullYear()
-  const randomString = Math.random().toString(36).substring(2, 8).toUpperCase()
-  return `HENZ${year}${randomString}`
-}
