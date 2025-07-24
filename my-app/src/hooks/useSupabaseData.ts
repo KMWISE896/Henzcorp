@@ -91,21 +91,6 @@ export const useSupabaseData = () => {
   }
 }
 
-// Minor improvements to `getUserWallets` (lib/database.ts)
-export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
-  console.log('👉 Fetching wallets for user:', userId)
-  const { data, error } = await supabase
-    .from('wallets')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: true })
 
-  if (error) {
-    console.error('❌ Supabase error (wallets):', error)
-    throw error
-  }
-
-  return data || []
-}
 
 // You can also ensure all other database functions throw on error and log appropriately.
