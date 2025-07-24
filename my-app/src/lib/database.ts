@@ -354,7 +354,7 @@ export const detectNetwork = (phone: string): 'mtn' | 'airtel' | 'utl' => {
   }
   
   return 'mtn'
-} whats missing , i still get the same error about access token
+} 
 
 export const signIn = async (email: string, password: string) => {
   try {
