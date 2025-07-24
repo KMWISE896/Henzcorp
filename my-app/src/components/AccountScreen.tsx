@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, User, Mail, Phone, Shield, Bell, HelpCircle, LogOut, ChevronRight, Edit, Camera, Eye, EyeOff } from 'lucide-react';
 import { signOut, updateUserProfile } from '../lib/database';
 import { useSupabase } from '../contexts/SupabaseContext';
+import { useFocusEffect } from '@react-navigation/native'
 
 interface AccountScreenProps {
   onBack: () => void;
@@ -76,6 +77,13 @@ export default function AccountScreen({ onBack, onLogout, showAlert }: AccountSc
       action: () => showAlert?.showInfo('Support', 'Contact support at support@henzcorp.com')
     }
   ];
+
+  const { refreshData } = useSupabase()
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshData() // ✅ refresh wallets + transactions when screen is focused
+    }, [])
 
   const handleLogout = async () => {
     try {
