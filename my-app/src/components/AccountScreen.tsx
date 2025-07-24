@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, User, Mail, Phone, Shield, Bell, HelpCircle, LogOut, ChevronRight, Edit, Camera, Eye, EyeOff } from 'lucide-react';
+import  { useState } from 'react';
+import { ArrowLeft, Shield, Bell, HelpCircle, LogOut, ChevronRight, Edit, Camera, Eye, EyeOff } from 'lucide-react';
 import { signOut, updateUserProfile } from '../lib/database';
 import { useSupabase } from '../contexts/SupabaseContext';
 
