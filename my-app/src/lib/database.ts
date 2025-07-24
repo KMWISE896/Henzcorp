@@ -12,10 +12,9 @@ export type Referral = Database['public']['Tables']['referrals']['Row']
 
 // Authentication functions
 
-
 export const signUp = async (
-  email: string,
-  password: string,
+  email: string, 
+  password: string, 
   userData: {
     firstName: string
     lastName: string
@@ -24,54 +23,32 @@ export const signUp = async (
   }
 ) => {
   try {
-    // Step 1: Create user
+    // Sign up user with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
-      password
+      password,
     })
 
     if (authError) throw authError
     if (!authData.user) throw new Error('User creation failed')
 
-    const userId = authData.user.id
-
-    // Step 2: Get session
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError) throw sessionError
-
-    const accessToken = sessionData.session?.access_token
-    if (!accessToken) throw new Error('Access token missing after signup')
-
-    // Step 3: Create new client with token
-    const authedClient = createClient(
-      import.meta.env.VITE_SUPABASE_URL,
-      import.meta.env.VITE_SUPABASE_ANON_KEY,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        }
-      }
-    )
-
-    // Step 4: Lookup referral
+    // Find referrer if referral code provided
     let referrerId: string | null = null
     if (userData.referralCode) {
-      const { data: referrer } = await authedClient
+      const { data: referrer } = await supabase
         .from('user_profiles')
         .select('id')
         .eq('referral_code', userData.referralCode)
         .single()
-
-      referrerId = referrer?.id ?? null
+      
+      referrerId = referrer?.id || null
     }
 
-    // Step 5: Create user profile (must match auth.uid() for RLS)
-    const { error: profileError } = await authedClient
+    // Create user profile
+    const { error: profileError } = await supabase
       .from('user_profiles')
       .upsert({
-        id: userId,
+        id: authData.user.id,
         first_name: userData.firstName,
         last_name: userData.lastName,
         phone: userData.phone,
@@ -82,11 +59,11 @@ export const signUp = async (
 
     if (profileError) throw profileError
 
-    // Step 6: Create wallet
-    const { error: walletError } = await authedClient
+    // Create initial UGX wallet
+    const { error: walletError } = await supabase
       .from('wallets')
       .insert({
-        user_id: userId,
+        user_id: authData.user.id,
         currency: 'UGX',
         balance: 0,
         available_balance: 0,
@@ -101,7 +78,6 @@ export const signUp = async (
     throw error
   }
 }
-
 
 export const signIn = async (email: string, password: string) => {
   try {
