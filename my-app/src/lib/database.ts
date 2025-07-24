@@ -99,7 +99,64 @@ export const getUserProfile = async (userId: string): Promise<UserProfile> => {
     }
   }
   
-  throw new Error(`User profile not found after ${maxRetries} attempts`)
+  // If profile still not found after retries, create it manually as fallback
+  console.log('🔧 Creating user profile manually as fallback...')
+  return await createUserProfileFallback(userId)
+}
+
+// Fallback function to create user profile if database trigger fails
+const createUserProfileFallback = async (userId: string): Promise<UserProfile> => {
+  try {
+    // Get user data from auth
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError) throw userError
+    
+    // Generate referral code
+    const generateReferralCode = () => {
+      const year = new Date().getFullYear()
+      const randomString = Math.random().toString(36).substring(2, 8).toUpperCase()
+      return `HENZ${year}${randomString}`
+    }
+    
+    // Create user profile manually
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .insert({
+        id: userId,
+        first_name: user?.user_metadata?.first_name || 'User',
+        last_name: user?.user_metadata?.last_name || 'Name',
+        phone: user?.user_metadata?.phone || '',
+        verification_status: 'verified',
+        referral_code: generateReferralCode()
+      })
+      .select()
+      .single()
+    
+    if (profileError) throw profileError
+    
+    // Create default UGX wallet
+    const { error: walletError } = await supabase
+      .from('wallets')
+      .insert({
+        user_id: userId,
+        currency: 'UGX',
+        balance: 0,
+        available_balance: 0,
+        locked_balance: 0
+      })
+    
+    if (walletError) {
+      console.warn('Failed to create wallet:', walletError)
+      // Don't throw error for wallet creation failure
+    }
+    
+    console.log('✅ User profile created manually')
+    return profile
+    
+  } catch (error) {
+    console.error('Failed to create user profile fallback:', error)
+    throw new Error('Failed to create user profile')
+  }
 }
 
 export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>) => {
