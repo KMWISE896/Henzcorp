@@ -84,6 +84,7 @@ export default function AccountScreen({ onBack, onLogout, showAlert }: AccountSc
     useCallback(() => {
       refreshData() // ✅ refresh wallets + transactions when screen is focused
     }, [])
+    )
 
   const handleLogout = async () => {
     try {
