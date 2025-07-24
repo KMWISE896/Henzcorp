@@ -282,6 +282,7 @@ export default function DepositScreen({ onBack, onSuccess, showAlert }: DepositS
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 placeholder="0700123456"
+                max-length={10}
                 className="w-full bg-black/30 backdrop-blur-sm border border-blue-800/30 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
               />
               <p className="text-gray-400 text-xs mt-2">
