@@ -1,15 +1,25 @@
-
-// Updated `useSupabaseData.ts`
 import { useState, useEffect, useMemo } from 'react'
 import { getUserWallets, getUserTransactions, type Wallet, type Transaction } from '../lib/database'
 import { useSupabaseAuth } from './useSupabaseAuth'
 
 export const useSupabaseData = () => {
-  const { user } = useSupabaseAuth()
+  const { user, session } = useSupabaseAuth()  // <-- now grabbing session also
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const getDefaultWallet = (userId: string): Wallet => ({
+    id: 'default-ugx',
+    user_id: userId,
+    currency: 'UGX',
+    balance: 0,
+    available_balance: 0,
+    locked_balance: 0,
+    wallet_address: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  })
 
   const refreshData = async () => {
     if (!user) {
@@ -41,20 +51,13 @@ export const useSupabaseData = () => {
   }
 
   useEffect(() => {
-    if (user) refreshData()
-  }, [user])
-
-  const getDefaultWallet = (userId: string): Wallet => ({
-    id: 'default-ugx',
-    user_id: userId,
-    currency: 'UGX',
-    balance: 0,
-    available_balance: 0,
-    locked_balance: 0,
-    wallet_address: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  })
+    if (user && session) {
+      console.log('✅ Authenticated session found, refreshing data...')
+      refreshData()
+    } else {
+      console.log('⏸️ Skipping data fetch: user or session missing')
+    }
+  }, [user, session])
 
   const conversionRates: Record<string, number> = {
     BTC: 165420000,
@@ -90,7 +93,3 @@ export const useSupabaseData = () => {
     getWalletBalance
   }
 }
-
-
-
-// You can also ensure all other database functions throw on error and log appropriately.
