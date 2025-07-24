@@ -188,19 +188,39 @@ export default function AppDatabase() {
     console.log('🚪 Logging out...')
     
     try {
-      // Direct Supabase logout
+      // Clear all storage first to prevent any race conditions
+      console.log('🗑️ Clearing all storage...')
+      localStorage.clear()
+      sessionStorage.clear()
+      
+      // Clear any HenzCorp specific storage keys
+      const keysToRemove = [
+        'henzcorp_current_user',
+        'henzcorp_session',
+        'henzcorp_auth_token',
+        'supabase.auth.token',
+        'sb-xdouqtbiohhfpwjqkqbv-auth-token'
+      ]
+      
+      keysToRemove.forEach(key => {
+        try {
+          localStorage.removeItem(key)
+          sessionStorage.removeItem(key)
+        } catch (e) {
+          // Ignore errors for keys that don't exist
+        }
+      })
+      
+      // Sign out from Supabase
       console.log('🔐 Signing out from Supabase...')
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        console.error('❌ Supabase logout error:', error)
-      } else {
-        console.log('✅ Supabase logout successful')
-      }
+      await supabase.auth.signOut({ scope: 'global' })
+      console.log('✅ Supabase logout successful')
+      
     } catch (error) {
-      console.warn('⚠️ Logout error:', error)
+      console.warn('⚠️ Supabase logout error (continuing anyway):', error)
     }
     
-    // Force clear all state regardless of logout success
+    // Force clear all app state
     console.log('🧹 Clearing all app state...')
     setAppState({
       user: null,
@@ -212,15 +232,19 @@ export default function AppDatabase() {
       dataLoading: false
     })
     
-    // Clear all storage
-    console.log('🗑️ Clearing storage...')
+    // Double-check storage is cleared
     localStorage.clear()
     sessionStorage.clear()
     
-    // Reset to login screen
+    // Reset UI to login screen
     console.log('🔄 Resetting to login screen...')
     setShowLogin(true)
     setCurrentScreen('home')
+    
+    // Force page reload to ensure clean state (optional but thorough)
+    setTimeout(() => {
+      window.location.reload()
+    }, 100)
     
     console.log('✅ Logout completed')
   }

@@ -80,21 +80,38 @@ export default function AccountScreen({ onBack, onLogout, showAlert }: AccountSc
   const handleLogout = async () => {
     try {
       console.log('🚪 Account logout initiated...')
-      await signOut();
-      console.log('✅ Supabase logout successful')
       
-      // Clear any cached data
+      // Clear storage first
       localStorage.clear()
       sessionStorage.clear()
-      console.log('🗑️ Storage cleared')
+      
+      // Clear specific auth keys
+      const authKeys = [
+        'henzcorp_current_user',
+        'henzcorp_session', 
+        'supabase.auth.token',
+        'sb-xdouqtbiohhfpwjqkqbv-auth-token'
+      ]
+      
+      authKeys.forEach(key => {
+        try {
+          localStorage.removeItem(key)
+          sessionStorage.removeItem(key)
+        } catch (e) {
+          // Ignore errors
+        }
+      })
+      
+      await signOut()
+      console.log('✅ Supabase logout successful')
       
       onLogout();
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if logout fails, clear storage and proceed
+      // Even if Supabase logout fails, clear storage and proceed
       localStorage.clear()
       sessionStorage.clear()
-      onLogout() // Logout anyway
+      onLogout() // Force logout anyway
     }
   };
 
