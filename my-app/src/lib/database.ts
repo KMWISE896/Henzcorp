@@ -44,7 +44,7 @@ export const signUp = async (
     // Create user profile
     const { error: profileError } = await supabase
       .from('user_profiles')
-      .insert({
+      .upsert({
         id: authData.user.id,
         first_name: userData.firstName,
         last_name: userData.lastName,
