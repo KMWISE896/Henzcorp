@@ -64,24 +64,29 @@ export default function AppDatabase() {
     console.log('🚀 Initializing app...')
     
     try {
-      // Check if we have a stored session
-      const storedUser = localStorage.getItem('henzcorp_current_user')
+      // Check for existing Supabase session first
+      const { data: { session }, error } = await supabase.auth.getSession()
       
-      if (storedUser) {
-        const userData = JSON.parse(storedUser)
-        console.log('📱 Found stored session:', userData)
+      if (error) {
+        console.error('❌ Error getting session:', error)
+        setAppState(prev => ({ ...prev, loading: false }))
+        return
+      }
+      
+      if (session?.user) {
+        console.log('📱 Found existing session:', session.user.email)
         
         setAppState(prev => ({
           ...prev,
-          user: userData.user,
+          user: session.user,
           isAuthenticated: true,
           loading: false
         }))
         
         // Load user data
-        await loadUserData(userData.user.id)
+        await loadUserData(session.user.id)
       } else {
-        console.log('🔍 No stored session found')
+        console.log('🔍 No existing session found')
         setAppState(prev => ({
           ...prev,
           loading: false
@@ -188,36 +193,21 @@ export default function AppDatabase() {
     console.log('🚪 Logging out...')
     
     try {
-      // Clear all storage first to prevent any race conditions
-      console.log('🗑️ Clearing all storage...')
-      localStorage.clear()
-      sessionStorage.clear()
-      
-      // Clear any HenzCorp specific storage keys
-      const keysToRemove = [
-        'henzcorp_current_user',
-        'henzcorp_session',
-        'henzcorp_auth_token',
-        'supabase.auth.token',
-        'sb-xdouqtbiohhfpwjqkqbv-auth-token'
-      ]
-      
-      keysToRemove.forEach(key => {
-        try {
-          localStorage.removeItem(key)
-          sessionStorage.removeItem(key)
-        } catch (e) {
-          // Ignore errors for keys that don't exist
-        }
-      })
-      
       // Sign out from Supabase
       console.log('🔐 Signing out from Supabase...')
       await supabase.auth.signOut({ scope: 'global' })
       console.log('✅ Supabase logout successful')
       
+      // Clear all storage after successful Supabase logout
+      console.log('🗑️ Clearing all storage...')
+      localStorage.clear()
+      sessionStorage.clear()
+      
     } catch (error) {
       console.warn('⚠️ Supabase logout error (continuing anyway):', error)
+      // Even if Supabase logout fails, clear storage
+      localStorage.clear()
+      sessionStorage.clear()
     }
     
     // Force clear all app state
@@ -232,19 +222,10 @@ export default function AppDatabase() {
       dataLoading: false
     })
     
-    // Double-check storage is cleared
-    localStorage.clear()
-    sessionStorage.clear()
-    
     // Reset UI to login screen
     console.log('🔄 Resetting to login screen...')
     setShowLogin(true)
     setCurrentScreen('home')
-    
-    // Force page reload to ensure clean state (optional but thorough)
-    setTimeout(() => {
-      window.location.reload()
-    }, 100)
     
     console.log('✅ Logout completed')
   }
