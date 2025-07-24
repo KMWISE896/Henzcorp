@@ -1,8 +1,5 @@
 import { supabase } from './supabase-client'
 import type { Database } from './supabase-client'
-import { createClient } from '@supabase/supabase-js'
-import { supabase } from './supabase-client
-import { generateReferralCode } from './utils'
 
 // Type aliases for easier use
 export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
@@ -12,6 +9,9 @@ export type CryptoAsset = Database['public']['Tables']['crypto_assets']['Row']
 export type Referral = Database['public']['Tables']['referrals']['Row']
 
 // Authentication functions
+import { createClient } from '@supabase/supabase-js'
+import { supabase } from './supabase-client'
+import { generateReferralCode } from './utils'
 
 export const signUp = async (
   email: string,
@@ -100,31 +100,8 @@ export const signUp = async (
     console.error('Signup error:', error)
     throw error
   }
-} 
-export const signIn = async (email: string, password: string) => {
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (error) throw error
-    return data
-  } catch (error) {
-    console.error('Signin error:', error)
-    throw error
-  }
 }
 
-export const signOut = async () => {
-  const { error } = await supabase.auth.signOut()
-  if (error) throw error
-}
-
-export const getCurrentSession = async () => {
-  const { data: { session } } = await supabase.auth.getSession()
-  return session
-}
 
 // User Profile functions
 export const getUserProfile = async (userId: string): Promise<UserProfile> => {
