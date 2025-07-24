@@ -20,82 +20,25 @@ export const signUp = async (
   }
 ) => {
   try {
-    // Step 1: Sign up user (this may not sign them in automatically)
+    // Sign up user with metadata for the database trigger
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          phone: userData.phone,
+          referral_code: userData.referralCode
+        }
+      }
     })
 
     if (authError) throw authError
-    if (!authData.user) throw new Error('User creation failed')
-
-    const userId = authData.user.id
-
-    // Step 2: Immediately sign in to get session & access token
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (signInError) throw signInError
-    if (!signInData.session?.access_token) throw new Error('Access token missing after sign-in')
-
-    const accessToken = signInData.session.access_token
-
-    // Step 3: Create new supabase client with access token (for RLS)
-    const authedClient = createClient(
-      import.meta.env.VITE_SUPABASE_URL,
-      import.meta.env.VITE_SUPABASE_ANON_KEY,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        },
-      }
-    )
-
-    // Step 4: Find referrer if provided
-    let referrerId: string | null = null
-    if (userData.referralCode) {
-      const { data: referrer } = await authedClient
-        .from('user_profiles')
-        .select('id')
-        .eq('referral_code', userData.referralCode)
-        .single()
-      referrerId = referrer?.id ?? null
-    }
-
-    // Step 5: Insert or update user profile with RLS enforced
-    const { error: profileError } = await authedClient
-      .from('user_profiles')
-      .upsert({
-        id: userId,
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        phone: userData.phone,
-        referral_code: generateReferralCode(),
-        referred_by: referrerId,
-        verification_status: 'verified',
-      })
-
-    if (profileError) throw profileError
-
-    // Step 6: Create initial wallet
-    const { error: walletError } = await authedClient
-      .from('wallets')
-      .insert({
-        user_id: userId,
-        currency: 'UGX',
-        balance: 0,
-        available_balance: 0,
-        locked_balance: 0,
-      })
-
-    if (walletError) throw walletError
-
-    // Return full auth data, including session
-    return signInData
+    
+    // The database trigger will handle creating user profile and wallet
+    // Return the auth data directly
+    return authData
   } catch (error) {
     console.error('Signup error:', error)
     throw error
