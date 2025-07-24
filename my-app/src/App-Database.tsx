@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Home, ArrowUpDown, Plus, Minus, Smartphone, Users, User } from 'lucide-react'
+import {  Plus, Minus, Smartphone, User } from 'lucide-react'
 import { supabase } from './lib/supabase-client'
 import { useAlert } from './hooks/useAlert'
 
