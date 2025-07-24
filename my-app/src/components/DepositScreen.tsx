@@ -237,6 +237,7 @@ export default function DepositScreen({ onBack, onSuccess, showAlert }: DepositS
                 max="100,000,000"
               />
               <p className="text-gray-400 text-xs mt-1">Minimum deposit: UGX 10,000</p>
+               <p className="text-gray-400 text-xs mt-1">Minimum deposit: UGX 10,000,000</p>
             </div>
 
             {/* Quick Amount Buttons */}
