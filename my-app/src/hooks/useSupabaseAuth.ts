@@ -1,4 +1,3 @@
-// Updated `useSupabaseAuth.ts`
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase-client'
 import { getUserProfile, type UserProfile } from '../lib/database'
@@ -11,62 +10,93 @@ export const useSupabaseAuth = () => {
   const [session, setSession] = useState<Session | null>(null)
 
   useEffect(() => {
-    let isMounted = true
+    let mounted = true
 
-    const initializeAuth = async () => {
+    const init = async () => {
       try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession()
-        if (error) throw error
+        console.log('🔐 Initializing Supabase auth...')
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession()
 
-        if (!isMounted) return
+        if (error) {
+          console.error('❌ Error getting session:', error)
+          if (mounted) {
+            setLoading(false)
+          }
+          return
+        }
 
-        setSession(currentSession)
-        const currentUser = currentSession?.user ?? null
+        if (!mounted) return
+
+        console.log('📱 Initial session:', initialSession ? 'Found' : 'None')
+        setSession(initialSession)
+        const currentUser = initialSession?.user ?? null
         setUser(currentUser)
 
-        if (currentUser) await fetchUserProfile(currentUser.id)
+        if (currentUser) {
+          console.log('👤 Loading profile for user:', currentUser.id)
+          await loadUserProfile(currentUser.id)
+        } else {
+          console.log('🚫 No user found')
+          setProfile(null)
+        }
       } catch (err) {
-        console.error('Error initializing auth:', err)
+        console.error('❌ Error in auth init:', err)
       } finally {
-        if (isMounted) setLoading(false)
+        if (mounted) {
+          console.log('✅ Auth initialization complete')
+          setLoading(false)
+        }
       }
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        if (!isMounted) return
+    init()
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        if (!mounted) return
+
+        console.log('🔄 Auth state changed:', event, newSession ? 'Session exists' : 'No session')
         setSession(newSession)
         const newUser = newSession?.user ?? null
         setUser(newUser)
 
-        if (newUser) await fetchUserProfile(newUser.id)
-        else setProfile(null)
+        if (newUser) {
+          console.log('👤 Auth state change - loading profile for:', newUser.id)
+          await loadUserProfile(newUser.id)
+        } else {
+          console.log('🚫 Auth state change - no user')
+          setProfile(null)
+        }
 
-        setLoading(false)
+        if (mounted) {
+          setLoading(false)
+        }
       }
     )
 
-    initializeAuth()
-
     return () => {
-      isMounted = false
+      mounted = false
       subscription.unsubscribe()
     }
   }, [])
 
-  const fetchUserProfile = async (userId: string) => {
+  const loadUserProfile = async (userId: string) => {
     try {
+      console.log('📊 Fetching user profile...')
       const userProfile = await getUserProfile(userId)
+      console.log('✅ Profile loaded:', userProfile ? 'Success' : 'Not found')
       setProfile(userProfile)
     } catch (error) {
-      console.error('Error fetching profile:', error)
+      console.error('❌ Error loading user profile:', error)
       setProfile(null)
     }
   }
 
   const refreshProfile = async () => {
-    if (user) await fetchUserProfile(user.id)
+    if (user) {
+      console.log('🔄 Refreshing profile...')
+      await loadUserProfile(user.id)
+    }
   }
 
   return {
