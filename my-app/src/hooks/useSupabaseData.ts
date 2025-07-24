@@ -66,16 +66,19 @@ export const useSupabaseData = () => {
     USDT: 3700
   }
 
-  const getFiatBalance = useMemo(() => {
-    const wallet = wallets.find(w => w.currency === 'UGX')
-    return wallet?.available_balance || 0
-  }, [wallets])
+  const fiatBalance = useMemo(() => {
+  const wallet = wallets.find(w => w.currency === 'UGX')
+  return wallet?.available_balance || 0
+}, [wallets])
 
-  const getCryptoBalanceUGX = useMemo(() => {
-    return wallets
-      .filter(w => w.currency !== 'UGX')
-      .reduce((sum, w) => sum + (w.available_balance * (conversionRates[w.currency] || 1)), 0)
-  }, [wallets])
+const cryptoBalanceUGX = useMemo(() => {
+  return wallets
+    .filter(w => w.currency !== 'UGX')
+    .reduce((sum, w) => sum + (w.available_balance * (conversionRates[w.currency] || 1)), 0)
+}, [wallets])
+
+const getFiatBalance = () => fiatBalance
+const getCryptoBalanceUGX = () => cryptoBalanceUGX
 
   const getWalletBalance = (currency: string): number => {
     const wallet = wallets.find(w => w.currency === currency)
