@@ -234,6 +234,7 @@ export default function DepositScreen({ onBack, onSuccess, showAlert }: DepositS
                 className="w-full bg-black/30 backdrop-blur-sm border border-blue-800/30 rounded-xl px-4 py-3 text-white text-lg font-semibold placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
                 min="10000"
                 max="5000000"
+                maxLength={7}
               />
               <p className="text-gray-400 text-xs mt-1">Minimum deposit: UGX 10,000</p>
                <p className="text-gray-400 text-xs mt-1">Minimum deposit: UGX 5,000,000</p>
