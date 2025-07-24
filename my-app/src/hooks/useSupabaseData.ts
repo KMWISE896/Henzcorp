@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+
+// Updated `useSupabaseData.ts`
+import { useState, useEffect, useMemo } from 'react'
 import { getUserWallets, getUserTransactions, type Wallet, type Transaction } from '../lib/database'
 import { useSupabaseAuth } from './useSupabaseAuth'
 
@@ -11,152 +13,71 @@ export const useSupabaseData = () => {
 
   const refreshData = async () => {
     if (!user) {
-      console.log('🚫 No user - clearing data')
       setWallets([])
       setTransactions([])
-      setLoading(false)
       setError(null)
+      setLoading(false)
       return
     }
 
     try {
       setLoading(true)
       setError(null)
-      console.log('🔄 Refreshing data for user:', user.id)
-      
-      // Fetch user wallets
-      let userWallets: Wallet[] = []
-      let userTransactions: Transaction[] = []
-      
-      try {
-        console.log('📊 Fetching user wallets...')
-        userWallets = await getUserWallets(user.id)
-        console.log('✅ Wallets fetched successfully:', userWallets.length)
-        
-        // If no wallets exist, create a default UGX wallet entry for display
-        if (userWallets.length === 0) {
-          console.log('📝 No wallets found - user may need to make first transaction')
-          userWallets = [{
-            id: 'default-ugx',
-            user_id: user.id,
-            currency: 'UGX',
-            balance: 0,
-            available_balance: 0,
-            locked_balance: 0,
-            wallet_address: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }]
-        }
-      } catch (walletError) {
-        console.error('❌ Error fetching wallets:', walletError)
-        
-        // Check for specific error types
-        if (walletError.code === 'PGRST116' || 
-            walletError.message?.includes('relation') || 
-            walletError.message?.includes('does not exist') ||
-            walletError.message?.includes('permission denied')) {
-          
-          const errorMsg = 'Database tables not found or permission denied. Please check your Supabase setup.'
-          console.warn('⚠️', errorMsg)
-          setError(errorMsg)
-        } else {
-          setError(`Wallet fetch error: ${walletError.message}`)
-        }
-        
-        // Provide fallback wallet
-        userWallets = [{
-          id: 'fallback-ugx',
-          user_id: user.id,
-          currency: 'UGX',
-          balance: 0,
-          available_balance: 0,
-          locked_balance: 0,
-          wallet_address: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }]
-      }
-      
-      try {
-        console.log('📋 Fetching user transactions...')
-        userTransactions = await getUserTransactions(user.id, 50)
-        console.log('✅ Transactions fetched successfully:', userTransactions.length)
-      } catch (transactionError) {
-        console.error('❌ Error fetching transactions:', transactionError)
-        
-        if (transactionError.code === 'PGRST116' || 
-            transactionError.message?.includes('relation') || 
-            transactionError.message?.includes('does not exist') ||
-            transactionError.message?.includes('permission denied')) {
-          
-          if (!error) { // Only set if we don't already have an error
-            setError('Database tables not found or permission denied. Please check your Supabase setup.')
-          }
-        }
-        
-        userTransactions = []
-      }
-      
-      setWallets(userWallets)
+
+      const userWallets = await getUserWallets(user.id)
+      const safeWallets = userWallets.length > 0 ? userWallets : [getDefaultWallet(user.id)]
+      setWallets(safeWallets)
+
+      const userTransactions = await getUserTransactions(user.id, 50)
       setTransactions(userTransactions)
-      
-      console.log('✅ Data refreshed:', {
-        wallets: userWallets.length,
-        transactions: userTransactions.length
-      })
-    } catch (error) {
-      console.error('❌ Critical error refreshing data:', error)
-      setError(`Critical error: ${error.message}`)
-      
-      // Set fallback data
-      setWallets([{
-        id: 'error-fallback-ugx',
-        user_id: user.id,
-        currency: 'UGX',
-        balance: 0,
-        available_balance: 0,
-        locked_balance: 0,
-        wallet_address: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
+    } catch (err: any) {
+      console.error('Data fetch error:', err)
+      setError(err.message || 'Unknown error')
+      setWallets([getDefaultWallet(user?.id)])
       setTransactions([])
     } finally {
       setLoading(false)
     }
   }
 
-  const getFiatBalance = (): number => {
-    const wallet = wallets.find(w => w.currency === 'UGX')
-    return wallet?.available_balance || 0
+  useEffect(() => {
+    if (user) refreshData()
+  }, [user])
+
+  const getDefaultWallet = (userId: string): Wallet => ({
+    id: 'default-ugx',
+    user_id: userId,
+    currency: 'UGX',
+    balance: 0,
+    available_balance: 0,
+    locked_balance: 0,
+    wallet_address: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  })
+
+  const conversionRates: Record<string, number> = {
+    BTC: 165420000,
+    ETH: 8750000,
+    LTC: 380000,
+    USDT: 3700
   }
 
-  const getCryptoBalanceUGX = (): number => {
-    const conversionRates: { [key: string]: number } = {
-      'BTC': 165420000,
-      'ETH': 8750000,
-      'LTC': 380000,
-      'USDT': 3700
-    }
-    
+  const getFiatBalance = useMemo(() => {
+    const wallet = wallets.find(w => w.currency === 'UGX')
+    return wallet?.available_balance || 0
+  }, [wallets])
+
+  const getCryptoBalanceUGX = useMemo(() => {
     return wallets
       .filter(w => w.currency !== 'UGX')
-      .reduce((sum, wallet) => {
-        const rate = conversionRates[wallet.currency] || 1
-        return sum + (wallet.available_balance * rate)
-      }, 0)
-  }
+      .reduce((sum, w) => sum + (w.available_balance * (conversionRates[w.currency] || 1)), 0)
+  }, [wallets])
 
   const getWalletBalance = (currency: string): number => {
     const wallet = wallets.find(w => w.currency === currency)
     return wallet?.available_balance || 0
   }
-
-  useEffect(() => {
-    console.log('🔄 useSupabaseData effect triggered, user:', user ? 'exists' : 'none')
-    refreshData()
-  }, [user])
 
   return {
     wallets,
@@ -169,3 +90,22 @@ export const useSupabaseData = () => {
     getWalletBalance
   }
 }
+
+// Minor improvements to `getUserWallets` (lib/database.ts)
+export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
+  console.log('👉 Fetching wallets for user:', userId)
+  const { data, error } = await supabase
+    .from('wallets')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('❌ Supabase error (wallets):', error)
+    throw error
+  }
+
+  return data || []
+}
+
+// You can also ensure all other database functions throw on error and log appropriately.
