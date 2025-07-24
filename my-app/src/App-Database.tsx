@@ -311,18 +311,6 @@ export default function AppDatabase() {
 
   // Render different screens
   const renderScreen = () => {
-    const screenProps = {
-      user: appState.user,
-      profile: appState.profile,
-      wallets: appState.wallets,
-      transactions: appState.transactions,
-      getFiatBalance,
-      getCryptoBalanceUGX,
-      getWalletBalance,
-      refreshData,
-      showAlert: { showSuccess, showError, showWarning, showInfo }
-    }
-
     switch (currentScreen) {
       case 'deposit':
         return (
