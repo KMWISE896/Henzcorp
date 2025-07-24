@@ -1,5 +1,7 @@
 import { supabase } from './supabase-client'
 import type { Database } from './supabase-client'
+import { createClient } from '@supabase/supabase-js'
+import { generateReferralCode } from './utils'
 
 // Type aliases for easier use
 export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
@@ -9,9 +11,7 @@ export type CryptoAsset = Database['public']['Tables']['crypto_assets']['Row']
 export type Referral = Database['public']['Tables']['referrals']['Row']
 
 // Authentication functions
-import { createClient } from '@supabase/supabase-js'
-import { supabase } from './supabase-client'
-import { generateReferralCode } from './utils'
+
 
 export const signUp = async (
   email: string,
