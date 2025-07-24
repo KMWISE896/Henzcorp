@@ -127,6 +127,20 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
   return data
 }
 
+export const signIn = async (email: string, password: string) => {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Signin error:', error)
+    throw error
+  }
+}
 // Wallet functions
 // Minor improvements to `getUserWallets` (lib/database.ts)
 export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
