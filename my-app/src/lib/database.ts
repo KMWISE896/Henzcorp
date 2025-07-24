@@ -73,14 +73,33 @@ export const getCurrentSession = async () => {
 
 // User Profile functions
 export const getUserProfile = async (userId: string): Promise<UserProfile> => {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
+  const maxRetries = 5
+  const retryDelay = 1000 // 1 second
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle()
 
-  if (error) throw error
-  return data
+    if (error) {
+      console.error(`Attempt ${attempt} - Error fetching user profile:`, error)
+      if (attempt === maxRetries) throw error
+    } else if (data) {
+      console.log(`✅ User profile loaded on attempt ${attempt}`)
+      return data
+    } else {
+      console.log(`⏳ Attempt ${attempt} - User profile not found, retrying...`)
+    }
+    
+    // Wait before retrying (except on last attempt)
+    if (attempt < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, retryDelay))
+    }
+  }
+  
+  throw new Error(`User profile not found after ${maxRetries} attempts`)
 }
 
 export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>) => {
