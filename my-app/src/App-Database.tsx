@@ -169,14 +169,14 @@ export default function AppDatabase() {
       console.log('📝 Attempting signup...')
       const result = await dbSignUp(email, password, userData)
       
-      setAppState(prev => ({
-        ...prev,
-        user: result.user,
-        isAuthenticated: true
-      }))
+      // Show success message and redirect to login
+      showSuccess('Account Created!', 'Please log in with your new account.')
       
-      await loadUserData(result.user.id)
-      showSuccess('Account Created!', 'Welcome to HenzCorp!')
+      // Redirect to login screen after successful signup
+      setTimeout(() => {
+        setShowLogin(true)
+      }, 2000) // Give time for success message to be seen
+      
     } catch (error: any) {
       console.error('❌ Signup error:', error)
       showError('Signup Failed', error.message || 'Please try again.')
