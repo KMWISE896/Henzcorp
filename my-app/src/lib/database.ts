@@ -41,6 +41,8 @@ export const signUp = async (
       referrerId = referrer?.id || null
     }
 
+      await supabase.auth.getSession()
+    
     // Create user profile
     const { error: profileError } = await supabase
       .from('user_profiles')
