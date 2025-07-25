@@ -63,10 +63,15 @@ export default function UserManagement({ showAlert }: UserManagementProps) {
       // Now try to fetch the actual user data
       try {
         const userData = await getAllUsers(100, 0);
-        console.log('✅ Users loaded via admin function:', userData?.length || 0);
-        console.log("👀 getAllUsers response:", userData);
 
-        setUsers(userData || []);
+if (!userData || !Array.isArray(userData)) {
+  console.warn('⚠️ Unexpected getAllUsers return value:', userData);
+  throw new Error('getAllUsers did not return an array of users.');
+}
+
+console.log('✅ Users loaded via admin function:', userData.length);
+setUsers(userData);
+
         
         if (userData && userData.length > 0) {
           showAlert?.showSuccess('Users Loaded', `Successfully loaded ${userData.length} users`);
