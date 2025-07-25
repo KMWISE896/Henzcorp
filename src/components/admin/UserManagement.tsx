@@ -38,42 +38,59 @@ export default function UserManagement({ showAlert }: UserManagementProps) {
       setLoading(true);
       console.log('🔍 Loading users from database...');
       
-      // Try direct Supabase query first
-      const { data: userData, error } = await supabase
+      // First check if we can access the table at all
+      console.log('🔍 Testing database access...');
+      const { count, error: countError } = await supabase
         .from('user_profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .select('*', { count: 'exact', head: true });
       
-      if (error) {
-        console.error('❌ Supabase error:', error);
-        throw error;
+      if (countError) {
+        console.error('❌ Cannot access user_profiles table:', countError);
+        showAlert?.showError('Database Access Error', 
+          `Cannot access user_profiles table. This is likely due to Row Level Security (RLS) policies. Error: ${countError.message}`);
+        return;
       }
       
-      console.log('✅ Users loaded:', userData?.length || 0);
-      setUsers(userData || []);
+      console.log('📊 Total users in database:', count);
+      
+      if (count === 0) {
+        console.log('ℹ️ No users found in database');
+        setUsers([]);
+        showAlert?.showInfo('No Users', 'No users have registered in the system yet.');
+        return;
+      }
+      
+      // Now try to fetch the actual user data
+      try {
+        const userData = await getAllUsers(100, 0);
+        console.log('✅ Users loaded via admin function:', userData?.length || 0);
+        setUsers(userData || []);
+        
+        if (userData && userData.length > 0) {
+          showAlert?.showSuccess('Users Loaded', `Successfully loaded ${userData.length} users`);
+        }
+      } catch (adminError) {
+        console.error('❌ Admin function failed:', adminError);
+        
+        // Try direct query as fallback
+        const { data: directData, error: directError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100);
+        
+        if (directError) {
+          throw new Error(`Both admin function and direct query failed. RLS policies are blocking access. Count shows ${count} users exist but cannot be read.`);
+        }
+        
+        console.log('✅ Direct query succeeded:', directData?.length || 0);
+        setUsers(directData || []);
+      }
+      
     } catch (error) {
       console.error('Error loading users:', error);
-      showAlert?.showError('Error', `Failed to load users: ${error.message}`);
-      
-      // Try to show some debug info
-      console.log('🔧 Debug: Checking Supabase connection...');
-      try {
-        const { data: testData, error: testError } = await supabase
-          .from('user_profiles')
-          .select('count')
-          .limit(1);
-        
-        if (testError) {
-          console.error('❌ Connection test failed:', testError);
-          showAlert?.showError('Database Error', 'Cannot connect to user_profiles table');
-        } else {
-          console.log('✅ Connection test passed');
-          showAlert?.showInfo('Debug', 'Database connection works but no users found');
-        }
-      } catch (debugError) {
-        console.error('❌ Debug test failed:', debugError);
-      }
+      showAlert?.showError('Access Error', 
+        `Failed to load users: ${error.message}. This is likely due to Row Level Security policies blocking admin access.`);
     } finally {
       setLoading(false);
     }

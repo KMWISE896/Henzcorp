@@ -144,15 +144,33 @@ export const getPlatformStats = async () => {
 // User management functions
 export const getAllUsers = async (limit = 50, offset = 0) => {
   try {
-    // First try to get users with a simple query
-    const { data, error } = await supabase
+    console.log('🔍 Fetching users via admin function...')
+    
+    // Try using the admin function first (bypasses RLS)
+    const { data: adminData, error: adminError } = await supabase
+      .rpc('admin_get_all_users')
+    
+    if (!adminError && adminData) {
+      console.log('✅ Admin function succeeded:', adminData.length)
+      return adminData
+    }
+    
+    console.log('⚠️ Admin function failed, trying direct query:', adminError?.message)
+    
+    // Fallback to direct query
+    const { data: directData, error: directError } = await supabase
       .from('user_profiles')
       .select('*')
       .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false })
 
-    if (error) throw error
-    return data
+    if (directError) {
+      console.error('❌ Direct query failed:', directError)
+      throw new Error(`Cannot access user data. Admin function error: ${adminError?.message}, Direct query error: ${directError.message}`)
+    }
+    
+    console.log('✅ Direct query succeeded:', directData?.length || 0)
+    return directData || []
   } catch (error) {
     console.error('Error fetching users:', error)
     throw error
@@ -201,17 +219,44 @@ export const updateUserVerification = async (userId: string, status: 'pending' |
 // Transaction management functions
 export const getAllTransactions = async (limit = 50, offset = 0) => {
   try {
-    const { data, error } = await supabase
+    console.log('🔍 Fetching transactions via admin function...')
+    
+    // Try using the admin function first
+    const { data: adminData, error: adminError } = await supabase
+      .rpc('admin_get_all_transactions')
+    
+    if (!adminError && adminData) {
+      console.log('✅ Admin transactions function succeeded:', adminData.length)
+      // Transform the data to match expected format
+      return adminData.map(t => ({
+        ...t,
+        user_profiles: {
+          first_name: t.user_first_name,
+          last_name: t.user_last_name,
+          email: t.user_email
+        }
+      }))
+    }
+    
+    console.log('⚠️ Admin function failed, trying direct query:', adminError?.message)
+    
+    // Fallback to direct query
+    const { data: directData, error: directError } = await supabase
       .from('transactions')
       .select(`
         *,
-        user_profiles(first_name, last_name, email)
+        user_profiles(first_name, last_name)
       `)
       .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false })
 
-    if (error) throw error
-    return data
+    if (directError) {
+      console.error('❌ Direct transactions query failed:', directError)
+      throw new Error(`Cannot access transaction data: ${directError.message}`)
+    }
+    
+    console.log('✅ Direct transactions query succeeded:', directData?.length || 0)
+    return directData || []
   } catch (error) {
     console.error('Error fetching transactions:', error)
     throw error
