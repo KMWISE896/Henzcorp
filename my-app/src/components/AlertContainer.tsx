@@ -1,4 +1,3 @@
-import React from 'react';
 import Alert from './Alert';
 import type { AlertProps } from './Alert';
 import type { AlertData } from '../hooks/useAlert';

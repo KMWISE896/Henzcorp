@@ -1,53 +1,131 @@
+// hooks/useSupabaseAuth.ts
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase-client'
-import { getUserProfile, type UserProfile } from '../lib/database'
+import { 
+  getUserProfile, 
+  getUserWallets, 
+  getUserTransactions,
+  type UserProfile,
+  type Wallet,
+  type Transaction
+} from '../lib/database'
 import type { User, Session } from '@supabase/supabase-js'
 
+interface AuthState {
+  user: User | null
+  profile: UserProfile | null
+  wallets: Wallet[]
+  transactions: Transaction[]
+  session: Session | null
+  loading: boolean
+  dataLoading: boolean
+}
+
 export const useSupabaseAuth = () => {
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [session, setSession] = useState<Session | null>(null)
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    profile: null,
+    wallets: [],
+    transactions: [],
+    session: null,
+    loading: true,
+    dataLoading: false
+  })
+
+  const loadUserData = async (userId: string) => {
+    setState(prev => ({ ...prev, dataLoading: true }))
+    
+    try {
+      console.log('📊 Loading all user data...')
+      const [profile, wallets, transactions] = await Promise.all([
+        getUserProfile(userId),
+        getUserWallets(userId),
+        getUserTransactions(userId, 10)
+      ])
+
+      console.log('✅ User data loaded successfully')
+      setState(prev => ({
+        ...prev,
+        profile,
+        wallets,
+        transactions,
+        dataLoading: false
+      }))
+    } catch (error) {
+      console.error('❌ Error loading user data:', error)
+      setState(prev => ({
+        ...prev,
+        dataLoading: false,
+        wallets: [{
+          id: 'fallback-ugx',
+          user_id: userId,
+          currency: 'UGX',
+          balance: 0,
+          available_balance: 0,
+          locked_balance: 0,
+          wallet_address: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }]
+      }))
+    }
+  }
 
   useEffect(() => {
     let mounted = true
+    let timeoutId: NodeJS.Timeout
 
     const init = async () => {
       try {
         console.log('🔐 Initializing Supabase auth...')
         const { data: { session: initialSession }, error } = await supabase.auth.getSession()
 
+        if (!mounted) return
+        
         if (error) {
           console.error('❌ Error getting session:', error)
-          if (mounted) {
-            setLoading(false)
-          }
+          setState(prev => ({ ...prev, loading: false }))
           return
         }
 
-        if (!mounted) return
-
         console.log('📱 Initial session:', initialSession ? 'Found' : 'None')
-        setSession(initialSession)
-        const currentUser = initialSession?.user ?? null
-        setUser(currentUser)
-
-        if (currentUser) {
-          console.log('👤 Loading profile for user:', currentUser.id)
-          await loadUserProfile(currentUser.id)
+        
+        if (initialSession?.user) {
+          console.log('👤 Loading data for user:', initialSession.user.id)
+          await loadUserData(initialSession.user.id)
+          setState(prev => ({
+            ...prev,
+            user: initialSession.user,
+            session: initialSession,
+            loading: false
+          }))
         } else {
-          console.log('🚫 No user found')
-          setProfile(null)
+          setState(prev => ({
+            ...prev,
+            loading: false
+          }))
         }
       } catch (err) {
         console.error('❌ Error in auth init:', err)
-      } finally {
         if (mounted) {
-          console.log('✅ Auth initialization complete')
-          setLoading(false)
+          setState(prev => ({
+            ...prev,
+            loading: false
+          }))
         }
       }
     }
+
+    // 10 second timeout
+    timeoutId = setTimeout(() => {
+      if (mounted && state.loading) {
+        console.warn('⚠️ Auth initialization timeout')
+        setState(prev => ({
+          ...prev,
+          loading: false
+        }))
+      }
+    }, 10000)
 
     init()
 
@@ -55,56 +133,46 @@ export const useSupabaseAuth = () => {
       async (event, newSession) => {
         if (!mounted) return
 
-        console.log('🔄 Auth state changed:', event, newSession ? 'Session exists' : 'No session')
-        setSession(newSession)
-        const newUser = newSession?.user ?? null
-        setUser(newUser)
-
-        if (newUser) {
-          console.log('👤 Auth state change - loading profile for:', newUser.id)
-          await loadUserProfile(newUser.id)
+        console.log('🔄 Auth state changed:', event)
+        
+        if (newSession?.user) {
+          await loadUserData(newSession.user.id)
+          setState(prev => ({
+            ...prev,
+            user: newSession.user,
+            session: newSession,
+            loading: false
+          }))
         } else {
-          console.log('🚫 Auth state change - no user')
-          setProfile(null)
-        }
-
-        if (mounted) {
-          setLoading(false)
+          setState(prev => ({
+            ...prev,
+            user: null,
+            profile: null,
+            wallets: [],
+            transactions: [],
+            session: null,
+            loading: false
+          }))
         }
       }
     )
 
     return () => {
       mounted = false
+      clearTimeout(timeoutId)
       subscription.unsubscribe()
     }
   }, [])
 
-  const loadUserProfile = async (userId: string) => {
-    try {
-      console.log('📊 Fetching user profile...')
-      const userProfile = await getUserProfile(userId)
-      console.log('✅ Profile loaded:', userProfile ? 'Success' : 'Not found')
-      setProfile(userProfile)
-    } catch (error) {
-      console.error('❌ Error loading user profile:', error)
-      setProfile(null)
-    }
-  }
-
-  const refreshProfile = async () => {
-    if (user) {
-      console.log('🔄 Refreshing profile...')
-      await loadUserProfile(user.id)
+  const refreshData = async () => {
+    if (state.user) {
+      await loadUserData(state.user.id)
     }
   }
 
   return {
-    user,
-    profile,
-    session,
-    loading,
-    isAuthenticated: !!user,
-    refreshProfile
+    ...state,
+    isAuthenticated: !!state.user,
+    refreshData
   }
 }

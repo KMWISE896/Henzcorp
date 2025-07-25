@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState } from 'react';
 import { CheckCircle, AlertCircle, XCircle, Info, X } from 'lucide-react';
 
 export interface AlertProps {
@@ -10,7 +10,7 @@ export interface AlertProps {
   onClose: (id: string) => void;
 }
 
-export default function Alert({ id, type, title, message, duration = 2500, onClose }: AlertProps) {
+export default function Alert({ id, type, title, message, duration = 3000, onClose }: AlertProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 

@@ -12,7 +12,7 @@ interface AccountScreenProps {
     showError: (title: string, message?: string) => void;
     showWarning: (title: string, message?: string) => void;
     showInfo: (title: string, message?: string) => void;
-  };
+  }; 
 }
 
 export default function AccountScreen({ onBack, onLogout, showAlert }: AccountScreenProps) {

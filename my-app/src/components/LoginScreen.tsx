@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Smartphone } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
 import { signIn } from '../lib/database';
 
 interface LoginScreenProps {
@@ -48,10 +48,13 @@ export default function LoginScreen({ onLogin, onSwitchToSignup, showAlert, onLo
   const handleForgotPassword = () => {
     alert('Password reset link will be sent to your email');
   };
-
-  const handleSocialLogin = (provider: string) => {
+  
+  {/*
+         const handleSocialLogin = (provider: string) => {
     alert(`Login with ${provider} - Feature coming soon!`);
   };
+    */}
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white flex items-center justify-center px-6">
@@ -79,7 +82,7 @@ export default function LoginScreen({ onLogin, onSwitchToSignup, showAlert, onLo
               />
             </div>
             <p className="text-gray-400 text-xs mt-1">
-              Demo: demo@henzcorp.com / demo123
+              Demo: emma@gmail.com / demo123
             </p>
           </div>
 

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Home, ArrowUpDown, Users, User } from 'lucide-react';
 
 interface BottomNavigationProps {
