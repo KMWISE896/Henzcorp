@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getUserWallets, getUserTransactions, type Wallet, type Transaction } from '../lib/database'
 import { useSupabaseAuth } from './useSupabaseAuth'
+import { supabase } from '../lib/supabase-client'
 
 export const useSupabaseData = () => {
   const { user } = useSupabaseAuth()
@@ -18,20 +19,14 @@ export const useSupabaseData = () => {
 
     try {
       setLoading(true)
-      console.log('🔄 Refreshing data for user:', user.id)
-      
+
       const [userWallets, userTransactions] = await Promise.all([
         getUserWallets(user.id),
         getUserTransactions(user.id, 50)
       ])
-      
+
       setWallets(userWallets)
       setTransactions(userTransactions)
-      
-      console.log('✅ Data refreshed:', {
-        wallets: userWallets.length,
-        transactions: userTransactions.length
-      })
     } catch (error) {
       console.error('❌ Error refreshing data:', error)
     } finally {
@@ -39,6 +34,7 @@ export const useSupabaseData = () => {
     }
   }
 
+  // Balances...
   const getFiatBalance = (): number => {
     const wallet = wallets.find(w => w.currency === 'UGX')
     return wallet?.available_balance || 0
@@ -51,7 +47,7 @@ export const useSupabaseData = () => {
       'LTC': 380000,
       'USDT': 3700
     }
-    
+
     return wallets
       .filter(w => w.currency !== 'UGX')
       .reduce((sum, wallet) => {
@@ -65,11 +61,41 @@ export const useSupabaseData = () => {
     return wallet?.available_balance || 0
   }
 
- useEffect(() => { 
-  if (!loading) {
-    refreshData();
-  }
-}, [user, loading]);
+  // 🔁 Realtime subscription
+  useEffect(() => {
+    if (!user) return
+
+    const channel = supabase
+      .channel('realtime:transactions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transactions',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('🔄 Realtime transaction update:', payload)
+          refreshData()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      refreshData()
+    } else {
+      setWallets([])
+      setTransactions([])
+      setLoading(false)
+    }
+  }, [user])
 
   return {
     wallets,
