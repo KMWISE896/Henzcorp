@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, CreditCard, Smartphone, Building, CheckCircle, Clock } from 'lucide-react';
-import { createTransaction, createDeposit, updateWalletBalance, updateTransactionStatus } from '../lib/database';
+import { createTransaction, createDeposit, updateWalletBalance, getWalletBalance,updateTransactionStatus } from '../lib/database';
 import { useSupabase } from '../contexts/SupabaseContext';
 import TransactionLoader from './TransactionLoader';
 
