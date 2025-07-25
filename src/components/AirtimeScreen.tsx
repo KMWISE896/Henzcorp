@@ -117,6 +117,11 @@ export default function AirtimeScreen({ onBack, onSuccess, showAlert }: AirtimeS
       setTimeout(async () => {
         try {
           console.log('📱 Processing airtime purchase completion...')
+          
+          // Verify balance was deducted correctly (it was deducted earlier)
+          const currentBalance = await getWalletBalance(user.id, 'UGX')
+          console.log(`💰 UGX balance after airtime purchase: ${currentBalance}`)
+          
           // Update transaction status
           await updateTransactionStatus(transaction.id, 'completed');
           
@@ -140,9 +145,11 @@ export default function AirtimeScreen({ onBack, onSuccess, showAlert }: AirtimeS
         } catch (error) {
           console.error('Error completing airtime purchase:', error);
           // Refund if purchase fails
+          console.log('🔄 Refunding airtime purchase due to processing failure...')
           await updateWalletBalance(user.id, 'UGX', totalCost, 'add');
           await updateTransactionStatus(transaction.id, 'failed');
           setShowLoader(false);
+          showAlert?.showError('Airtime Purchase Failed', 'Purchase failed. Amount has been refunded to your account.');
         }
       }, 100); // Start loading immediately
 

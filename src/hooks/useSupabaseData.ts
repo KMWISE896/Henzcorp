@@ -33,6 +33,8 @@ export const useSupabaseData = () => {
     try {
       setLoading(true)
       setError(null)
+      
+      console.log('🔄 Refreshing user data...')
 
       const userWallets = await getUserWallets(user.id)
       const safeWallets = userWallets.length > 0 ? userWallets : [getDefaultWallet(user.id)]
@@ -40,6 +42,11 @@ export const useSupabaseData = () => {
 
       const userTransactions = await getUserTransactions(user.id, 50)
       setTransactions(userTransactions)
+      
+      console.log('✅ Data refreshed successfully:', {
+        wallets: safeWallets.length,
+        transactions: userTransactions.length
+      })
     } catch (err: any) {
       console.error('Data fetch error:', err)
       setError(err.message || 'Unknown error')

@@ -94,6 +94,8 @@ export default function BuyCryptoScreen({ onBack, onSuccess, showAlert }: BuyCry
     setIsLoading(true);
 
     try {
+      console.log(`🔄 Processing ${tradeType} trade: ${cryptoAmount} ${selectedCrypto.symbol} for UGX ${fiatAmount}`)
+      
       // Create transaction record
       const transaction = await createTransaction({
         user_id: user.id,
@@ -116,6 +118,11 @@ export default function BuyCryptoScreen({ onBack, onSuccess, showAlert }: BuyCry
         price_per_unit: selectedCrypto.current_price_ugx
       });
 
+      // Get balances before trade for verification
+      const ugxBefore = await getWalletBalance(user.id, 'UGX')
+      const cryptoBefore = await getWalletBalance(user.id, selectedCrypto.symbol)
+      console.log(`💰 Balances before trade - UGX: ${ugxBefore}, ${selectedCrypto.symbol}: ${cryptoBefore}`)
+
       if (tradeType === 'buy') {
         // Deduct UGX and add crypto
         await updateWalletBalance(user.id, 'UGX', total, 'subtract');
@@ -124,6 +131,26 @@ export default function BuyCryptoScreen({ onBack, onSuccess, showAlert }: BuyCry
         // Deduct crypto and add UGX
         await updateWalletBalance(user.id, selectedCrypto.symbol, cryptoAmount, 'subtract');
         await updateWalletBalance(user.id, 'UGX', total, 'add');
+      }
+
+      // Verify balances after trade
+      const ugxAfter = await getWalletBalance(user.id, 'UGX')
+      const cryptoAfter = await getWalletBalance(user.id, selectedCrypto.symbol)
+      console.log(`💰 Balances after trade - UGX: ${ugxAfter}, ${selectedCrypto.symbol}: ${cryptoAfter}`)
+      
+      // Validate the trade was processed correctly
+      if (tradeType === 'buy') {
+        const expectedUGX = ugxBefore - total
+        const expectedCrypto = cryptoBefore + cryptoAmount
+        if (Math.abs(ugxAfter - expectedUGX) > 0.01 || Math.abs(cryptoAfter - expectedCrypto) > 0.00000001) {
+          throw new Error(`Trade verification failed. UGX: ${ugxAfter} (expected ${expectedUGX}), ${selectedCrypto.symbol}: ${cryptoAfter} (expected ${expectedCrypto})`)
+        }
+      } else {
+        const expectedUGX = ugxBefore + total
+        const expectedCrypto = cryptoBefore - cryptoAmount
+        if (Math.abs(ugxAfter - expectedUGX) > 0.01 || Math.abs(cryptoAfter - expectedCrypto) > 0.00000001) {
+          throw new Error(`Trade verification failed. UGX: ${ugxAfter} (expected ${expectedUGX}), ${selectedCrypto.symbol}: ${cryptoAfter} (expected ${expectedCrypto})`)
+        }
       }
 
       // Update transaction status
@@ -149,6 +176,26 @@ export default function BuyCryptoScreen({ onBack, onSuccess, showAlert }: BuyCry
       setAmount('');
     } catch (error: any) {
       console.error('Trade error:', error);
+      
+      // Attempt to revert any partial balance changes on error
+      try {
+        console.log('🔄 Attempting to revert balance changes due to trade error...')
+        if (tradeType === 'buy') {
+          // Try to refund UGX if crypto was added but something failed
+          await updateWalletBalance(user.id, 'UGX', total, 'add');
+          await updateWalletBalance(user.id, selectedCrypto.symbol, cryptoAmount, 'subtract');
+        } else {
+          // Try to refund crypto if UGX was added but something failed
+          await updateWalletBalance(user.id, selectedCrypto.symbol, cryptoAmount, 'add');
+          await updateWalletBalance(user.id, 'UGX', total, 'subtract');
+        }
+        console.log('✅ Balance changes reverted successfully')
+      } catch (revertError) {
+        console.error('❌ Failed to revert balance changes:', revertError)
+        showAlert?.showError('Critical Error', 'Trade failed and balance revert failed. Please contact support immediately.');
+        return
+      }
+      
       showAlert?.showError('Trade Failed', error.message || 'Please try again.');
     } finally {
       setIsLoading(false);

@@ -100,8 +100,21 @@ export default function DepositScreen({ onBack, onSuccess, showAlert }: DepositS
       setTimeout(async () => {
         try {
           console.log('🏦 Processing deposit completion...')
+          
+          // Get balance before update for verification
+          const balanceBefore = await getWalletBalance(user.id, 'UGX')
+          console.log(`💰 UGX balance before deposit: ${balanceBefore}`)
+          
           // Update wallet balance
           await updateWalletBalance(user.id, 'UGX', depositAmount, 'add');
+          
+          // Verify balance was updated correctly
+          const balanceAfter = await getWalletBalance(user.id, 'UGX')
+          console.log(`💰 UGX balance after deposit: ${balanceAfter}`)
+          
+          if (balanceAfter !== balanceBefore + depositAmount) {
+            throw new Error(`Balance update verification failed. Expected: ${balanceBefore + depositAmount}, Actual: ${balanceAfter}`)
+          }
           
           // Update transaction status
           await updateTransactionStatus(transaction.id, 'completed');
@@ -123,8 +136,10 @@ export default function DepositScreen({ onBack, onSuccess, showAlert }: DepositS
           setPhoneNumber('');
         } catch (error) {
           console.error('Error completing deposit:', error);
+          // Revert the transaction status on failure
           await updateTransactionStatus(transaction.id, 'failed');
           setShowLoader(false);
+          showAlert?.showError('Deposit Failed', 'Failed to update wallet balance. Please contact support.');
         }
       }, 100); // Start loading immediately
 

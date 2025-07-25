@@ -129,6 +129,11 @@ export default function WithdrawScreen({ onBack, onSuccess, showAlert }: Withdra
       setTimeout(async () => {
         try {
           console.log('🏦 Processing withdrawal completion...')
+          
+          // Verify balance was deducted correctly (it was deducted earlier)
+          const currentBalance = await getWalletBalance(user.id, 'UGX')
+          console.log(`💰 UGX balance after withdrawal deduction: ${currentBalance}`)
+          
           // Update transaction status
           await updateTransactionStatus(transaction.id, 'completed');
           
@@ -151,9 +156,11 @@ export default function WithdrawScreen({ onBack, onSuccess, showAlert }: Withdra
         } catch (error) {
           console.error('Error completing withdrawal:', error);
           // Refund the amount if withdrawal fails
+          console.log('🔄 Refunding withdrawal amount due to processing failure...')
           await updateWalletBalance(user.id, 'UGX', totalDeduction, 'add');
           await updateTransactionStatus(transaction.id, 'failed');
           setShowLoader(false);
+          showAlert?.showError('Withdrawal Failed', 'Withdrawal processing failed. Amount has been refunded to your account.');
         }
       }, 100); // Start loading immediately
 

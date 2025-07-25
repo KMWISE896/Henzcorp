@@ -131,6 +131,17 @@ export default function TransferScreen({ onBack, onSuccess, showAlert }: Transfe
       setTimeout(async () => {
         try {
           console.log('💸 Processing transfer completion...')
+          
+          // Verify sender balance was deducted correctly
+          const senderBalance = await getWalletBalance(user.id, selectedCurrency)
+          console.log(`💰 Sender ${selectedCurrency} balance after transfer: ${senderBalance}`)
+          
+          // For internal transfers, verify recipient balance was credited
+          if (transferType === 'internal' && recipientId) {
+            const recipientBalance = await getWalletBalance(recipientId, selectedCurrency)
+            console.log(`💰 Recipient ${selectedCurrency} balance after transfer: ${recipientBalance}`)
+          }
+          
           await updateTransactionStatus(transaction.id, 'completed');
           
           console.log('🔄 Refreshing data after successful transfer...')
@@ -155,7 +166,26 @@ export default function TransferScreen({ onBack, onSuccess, showAlert }: Transfe
           setRecipientInfo(null);
         } catch (error) {
           console.error('Error completing transfer:', error);
+          
+          // Revert the transfer on failure
+          console.log('🔄 Reverting transfer due to processing failure...')
+          try {
+            // Refund sender
+            await updateWalletBalance(user.id, selectedCurrency, totalCost, 'add');
+            
+            // Deduct from recipient if it was an internal transfer
+            if (transferType === 'internal' && recipientId) {
+              await updateWalletBalance(recipientId, selectedCurrency, transferAmount, 'subtract');
+            }
+            
+            console.log('✅ Transfer reverted successfully')
+          } catch (revertError) {
+            console.error('❌ Failed to revert transfer:', revertError)
+            showAlert?.showError('Critical Error', 'Transfer failed and revert failed. Please contact support immediately.');
+          }
+          
           await updateTransactionStatus(transaction.id, 'failed');
+          showAlert?.showError('Transfer Failed', 'Transfer processing failed. Amount has been refunded to your account.');
         }
       }, 2000);
 

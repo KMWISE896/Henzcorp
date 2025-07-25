@@ -184,14 +184,25 @@ export const getUserWallets = async (userId: string): Promise<Wallet[]> => {
 }
 
 export const getWalletBalance = async (userId: string, currency: string): Promise<number> => {
-  const { data, error } = await supabase
-    .rpc('get_user_balance', {
-      user_uuid: userId,
-      wallet_currency: currency
-    })
+  try {
+    const { data, error } = await supabase
+      .rpc('get_user_balance', {
+        user_uuid: userId,
+        wallet_currency: currency
+      })
 
-  if (error) throw error
-  return data || 0
+    if (error) {
+      console.error(`❌ Error getting ${currency} balance for user ${userId}:`, error)
+      throw error
+    }
+    
+    const balance = data || 0
+    console.log(`📊 ${currency} balance for user ${userId}: ${balance}`)
+    return balance
+  } catch (error) {
+    console.error('❌ Error in getWalletBalance:', error)
+    throw error
+  }
 }
 
 export const updateWalletBalance = async (
@@ -200,13 +211,48 @@ export const updateWalletBalance = async (
   amount: number,
   operation: 'add' | 'subtract' = 'add'
 ) => {
-  const { data, error } = await supabase
-    .rpc('update_wallet_balance', {
-      user_uuid: userId,
-      wallet_currency: currency,
-      amount_change: amount,
-      operation_type: operation
-    })
+  try {
+    console.log(`💰 Updating wallet balance: ${operation} ${amount} ${currency} for user ${userId}`)
+    
+    // First, get current balance to validate the operation
+    const currentBalance = await getWalletBalance(userId, currency)
+    console.log(`📊 Current ${currency} balance: ${currentBalance}`)
+    
+    // Validate sufficient balance for subtract operations
+    if (operation === 'subtract' && currentBalance < amount) {
+      throw new Error(`Insufficient balance. Current: ${currentBalance}, Required: ${amount}`)
+    }
+    
+    // Use the database function to update balance
+    const { data, error } = await supabase
+      .rpc('update_wallet_balance', {
+        user_uuid: userId,
+        wallet_currency: currency,
+        amount_change: amount,
+        operation_type: operation
+      })
+
+    if (error) {
+      console.error('❌ Wallet balance update failed:', error)
+      throw error
+    }
+    
+    // Verify the update was successful by checking new balance
+    const newBalance = await getWalletBalance(userId, currency)
+    console.log(`✅ Updated ${currency} balance: ${currentBalance} → ${newBalance}`)
+    
+    // Validate the balance change is correct
+    const expectedBalance = operation === 'add' ? currentBalance + amount : currentBalance - amount
+    if (Math.abs(newBalance - expectedBalance) > 0.00000001) { // Account for floating point precision
+      console.warn(`⚠️ Balance mismatch! Expected: ${expectedBalance}, Actual: ${newBalance}`)
+    }
+    
+    return data
+  } catch (error) {
+    console.error('❌ Error updating wallet balance:', error)
+    throw error
+  }
+}
 
   if (error) throw error
   return data
