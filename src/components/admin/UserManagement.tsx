@@ -64,6 +64,8 @@ export default function UserManagement({ showAlert }: UserManagementProps) {
       try {
         const userData = await getAllUsers(100, 0);
         console.log('✅ Users loaded via admin function:', userData?.length || 0);
+        console.log("👀 getAllUsers response:", userData);
+
         setUsers(userData || []);
         
         if (userData && userData.length > 0) {
