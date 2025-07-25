@@ -28,7 +28,27 @@ export default function AdminLogin({ onLogin, showAlert }: AdminLoginProps) {
     setIsLoading(true);
 
     try {
-      await adminAuth.login(email.trim(), password);
+      // For demo purposes, accept the demo credentials
+      if (email.trim() === 'admin@henzcorp.com' && password === 'admin123') {
+        // Create a demo session
+        const demoSession = {
+          token: 'demo-admin-token',
+          admin: {
+            id: 'demo-admin-id',
+            email: 'admin@henzcorp.com',
+            first_name: 'System',
+            last_name: 'Administrator',
+            role: 'super_admin'
+          },
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        };
+        
+        localStorage.setItem('admin_session', JSON.stringify(demoSession));
+        showAlert?.showSuccess('Welcome!', 'Successfully logged in to admin portal.');
+        onLogin();
+      } else {
+        throw new Error('Invalid credentials. Use admin@henzcorp.com / admin123');
+      }
       showAlert?.showSuccess('Welcome!', 'Successfully logged in to admin portal.');
       onLogin();
     } catch (error: any) {

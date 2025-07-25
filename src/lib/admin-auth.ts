@@ -144,13 +144,10 @@ export const getPlatformStats = async () => {
 // User management functions
 export const getAllUsers = async (limit = 50, offset = 0) => {
   try {
+    // First try to get users with a simple query
     const { data, error } = await supabase
       .from('user_profiles')
-      .select(`
-        *,
-        wallets(currency, available_balance),
-        transactions(count)
-      `)
+      .select('*')
       .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false })
 

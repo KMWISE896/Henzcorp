@@ -11,6 +11,7 @@ import {
   Ban
 } from 'lucide-react';
 import { getAllUsers, updateUserVerification } from '../../lib/admin-auth';
+import { supabase } from '../../lib/supabase-client';
 
 interface UserManagementProps {
   showAlert?: {
@@ -35,11 +36,44 @@ export default function UserManagement({ showAlert }: UserManagementProps) {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const userData = await getAllUsers(100, 0);
-      setUsers(userData);
+      console.log('🔍 Loading users from database...');
+      
+      // Try direct Supabase query first
+      const { data: userData, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      
+      if (error) {
+        console.error('❌ Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Users loaded:', userData?.length || 0);
+      setUsers(userData || []);
     } catch (error) {
       console.error('Error loading users:', error);
-      showAlert?.showError('Error', 'Failed to load users');
+      showAlert?.showError('Error', `Failed to load users: ${error.message}`);
+      
+      // Try to show some debug info
+      console.log('🔧 Debug: Checking Supabase connection...');
+      try {
+        const { data: testData, error: testError } = await supabase
+          .from('user_profiles')
+          .select('count')
+          .limit(1);
+        
+        if (testError) {
+          console.error('❌ Connection test failed:', testError);
+          showAlert?.showError('Database Error', 'Cannot connect to user_profiles table');
+        } else {
+          console.log('✅ Connection test passed');
+          showAlert?.showInfo('Debug', 'Database connection works but no users found');
+        }
+      } catch (debugError) {
+        console.error('❌ Debug test failed:', debugError);
+      }
     } finally {
       setLoading(false);
     }
@@ -243,7 +277,16 @@ export default function UserManagement({ showAlert }: UserManagementProps) {
 
         {filteredUsers.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-400">No users found matching your criteria</p>
+            <div>
+              <p className="text-gray-400 mb-2">No users found matching your criteria</p>
+              <p className="text-gray-500 text-sm">Total users in database: {users.length}</p>
+              {users.length === 0 && (
+                <div className="mt-4">
+                  <p className="text-yellow-400 text-sm">No users in the database yet.</p>
+                  <p className="text-gray-500 text-xs mt-1">Users will appear here after they sign up in the main app.</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
